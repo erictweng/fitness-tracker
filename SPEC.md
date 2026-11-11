@@ -199,6 +199,7 @@ A phone-first web app where a small invited group logs what they eat in seconds 
 - Weekly suggestions, never silent — Decided by agent
 
 ## Open questions / parked
+- **Round 8 (open, 2026-11-11): Claude via MCP.** Eric: "I want to be able to talk to my Claude and MCP connect into the app and have it update my food and fitness automatically." Checked: Supabase Auth has an OAuth 2.1 server with dynamic client registration made for MCP (tokens are normal user JWTs, so RLS applies); Claude custom connectors take a remote MCP URL with OAuth (DCR or CIMD), redirect `https://claude.ai/api/mcp/auth_callback`, and connect from Anthropic's cloud (server must be public HTTPS — Vercel is). Asking: which Claude apps, what it may write/read, confirmation model, who gets it, when (MVP date impact). This supersedes the "AI plain-text logging" non-goal if locked.
 - Native iPhone app — parked.
 - Whether this replaces the "fitness/nutrition tracking" line on the AI Workflow Harness resume entry — parked.
 
