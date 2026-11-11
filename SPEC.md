@@ -18,7 +18,7 @@ A phone-first web app where a small invited group logs what they eat in seconds 
 - Self-serve export and account deletion; weekly encrypted off-site backup.
 
 **Non-goals for the MVP** (confirmed by Eric 2026-11-11)
-- Barcode scanning (next), WHOOP (M5, after the usage gate), native Mac/iPhone apps, AI plain-text logging, micronutrients, social features (post-MVP backlog), public sign-up.
+- Barcode scanning (next), WHOOP (M5, after the usage gate), native Mac/iPhone apps, in-app AI text logging (replaced by the Claude connector, M4.5), micronutrients, social features (post-MVP backlog), public sign-up.
 
 ## Users & permissions
 - **Users:** a small invited group (target < 20). Eric is a user and the only **admin**.
@@ -143,9 +143,24 @@ A phone-first web app where a small invited group logs what they eat in seconds 
 - **Public repo** (Eric's call): `.env*` gitignored; gitleaks pre-commit hook; GitHub push protection on; only the Supabase anon key in client code; no real user data in seeds, tests, fixtures or Action logs.
 - Errors: Vercel logs only.
 
+## Claude connector (M4.5, right after the MVP)
+Each user can connect their own Claude (Claude app on phone/web as a custom connector, and Claude Code) and talk to it to log and check their day.
+- **How it connects:** a remote MCP server at `/api/mcp` in this app (Streamable HTTP, public HTTPS on Vercel). Sign-in uses Supabase Auth's OAuth 2.1 server with dynamic client registration; Claude registers itself, the user signs in with Google and approves on our consent page. Redirects allowed: `https://claude.ai/api/mcp/auth_callback` and Claude Code's loopback.
+- **Privacy:** Claude's token is a normal token for that user, so the same RLS applies: it can only touch that user's rows. Invite-only still applies (an uninvited Google account can't sign in). Each user can see and revoke connected apps in Settings.
+- **Tools (v1):**
+  - `log_food` — name, meal?, date?, kcal, protein, fat?, carbs?; Claude estimates the numbers from what you said. Respects the user's required-macro settings.
+  - `log_weight` — weight in the user's unit, date?.
+  - `log_workout` — see Workouts (open in round 9).
+  - `get_day` — totals, targets, what's left, entries (date? defaults to today by the user's day-end rule).
+  - `list_recent_foods` — so Claude can reuse saved foods instead of guessing.
+  - Read/write only; **no** tools to change targets or settings, and no deletes (Undo happens in the app).
+- **After Claude logs:** saved immediately, marked **"via Claude"** (`source = 'claude'` + OAuth `client_id`), editable and undoable in the app like any entry. Each tool call uses a client-generated id so a retried call never doubles an entry.
+- **Cost:** $0 for the app (Claude does the estimating on the user's own Claude plan); MCP sign-ins count toward Supabase monthly active users (same user = 1).
+- **Acceptance:** Claude Code connects through the OAuth flow; "I had 2 eggs and toast" creates one entry marked via Claude with sensible numbers; `get_day` matches the Today screen; a second user's token sees none of the first user's data; retrying the same tool call creates no duplicate; revoking the app in Settings makes the next call fail.
+
 ## MVP scope / backlog
 **MVP:** F0–F11, per-user settings, offline queue, export, account deletion, admin page, weekly encrypted backup.
-**Backlog (in order):** M5 WHOOP per user (burn, eaten − burned, 14-day burn for targets); barcode scanning (Open Food Facts); social features (opt-in sharing, streaks); AI plain-text logging; native iPhone app.
+**Backlog (in order):** M4.5 Claude connector (+ workouts); M5 WHOOP per user (burn, eaten − burned, 14-day burn for targets); barcode scanning (Open Food Facts); social features (opt-in sharing, streaks); AI plain-text logging; native iPhone app.
 
 ## Milestones & acceptance criteria (soft deadline: MVP live **Fri 2026-11-20**)
 - **M0 Skeleton + access (days 1–2):** Next.js + Supabase + Google sign-in on Vercel; invites, admin page, RLS on all tables; public repo with gitleaks + push protection. *Accept:* invited test account gets in; uninvited account gets the invite-only message and no `profiles` row; an API call as admin for another user's `entries` returns 0 rows (automated test).
@@ -154,6 +169,7 @@ A phone-first web app where a small invited group logs what they eat in seconds 
 - **M3 Weight + targets (day 6):** *Accept:* 10-weigh-in fixture gives the expected 7-day average and protein target in both lb and kg; suggestion matches a hand-computed Mifflin-St Jeor example; BMR floor caps an aggressive cut.
 - **M4 History, offline, export, delete, backup (days 7–8):** *Accept:* airplane-mode test logs 2 entries, reconnects, exactly 2 rows; export zip has all CSVs and only that user's rows; account deletion leaves 0 rows for that user; the first backup lands in R2 and **restores** into a scratch Postgres with matching row counts; the Action log shows no data.
 - **Launch Fri 11-20:** Eric invites his group.
+- **M4.5 Claude connector + workouts (~Sat 11-21 → Tue 11-24):** acceptance in the Claude connector section.
 - **Usage gate (11-20 → 12-04):** Eric logs ≥ 12 of 14 days (also note how many invited users log ≥ 7 days). Pass → M5 WHOOP. Fail → fix logging friction first.
 
 ## Decisions log
@@ -189,6 +205,12 @@ A phone-first web app where a small invited group logs what they eat in seconds 
 - Admin sees invites and user list only — Eric
 - MVP by Fri 2026-11-20 — Eric
 - Non-goals list confirmed — Eric
+- Claude connector for the Claude app (phone/web) and Claude Code via OAuth — Eric
+- Claude can log food (estimating macros), log weight, log workouts, and read the day; no target/settings changes — Eric
+- Claude's entries save immediately, marked "via Claude", undoable in the app — Eric
+- Every invited user can connect their own Claude — Eric
+- Connector ships as M4.5 right after the MVP; Nov 20 date unchanged — Eric
+- No delete tool for Claude — Decided by agent (mistakes are undone in the app; limits damage from a misheard request)
 - Data stored metric, shown in the user's unit — Decided by agent (one source of truth, clean unit switching)
 - No invite emails sent; Eric shares the link — Decided by agent (no email provider needed for < 20 people)
 - Removing a user deletes their data immediately — Decided by agent (same path as self-delete)
@@ -199,7 +221,7 @@ A phone-first web app where a small invited group logs what they eat in seconds 
 - Weekly suggestions, never silent — Decided by agent
 
 ## Open questions / parked
-- **Round 8 (open, 2026-11-11): Claude via MCP.** Eric: "I want to be able to talk to my Claude and MCP connect into the app and have it update my food and fitness automatically." Checked: Supabase Auth has an OAuth 2.1 server with dynamic client registration made for MCP (tokens are normal user JWTs, so RLS applies); Claude custom connectors take a remote MCP URL with OAuth (DCR or CIMD), redirect `https://claude.ai/api/mcp/auth_callback`, and connect from Anthropic's cloud (server must be public HTTPS — Vercel is). Asking: which Claude apps, what it may write/read, confirmation model, who gets it, when (MVP date impact). This supersedes the "AI plain-text logging" non-goal if locked.
+- **Round 8 (open, 2026-11-11): Claude via MCP.** Eric: "I want to be able to talk to my Claude and MCP connect into the app and have it update my food and fitness automatically." Checked: Supabase Auth has an OAuth 2.1 server with dynamic client registration made for MCP (tokens are normal user JWTs, so RLS applies); Claude custom connectors take a remote MCP URL with OAuth (DCR or CIMD), redirect `https://claude.ai/api/mcp/auth_callback`, and connect from Anthropic's cloud (server must be public HTTPS — Vercel is). **R8 answers locked** (1a 2abd 3a 4a 5a) → see "Claude connector" section. **Round 9 open: workouts** (fields, effect on calorie target, logging in the app too, WHOOP overlap later).
 - Native iPhone app — parked.
 - Whether this replaces the "fitness/nutrition tracking" line on the AI Workflow Harness resume entry — parked.
 
