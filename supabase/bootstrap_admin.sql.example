@@ -1,0 +1,6 @@
+-- One-time: make yourself the first admin. Run in Supabase → SQL Editor
+-- AFTER supabase/migrations/0001_init.sql, BEFORE you sign in.
+-- This file is a template; do not commit your real email back into the repo.
+insert into public.invites (email, is_admin)
+values (lower(btrim('<your-google-email>')), true)
+on conflict (email) do update set is_admin = true, revoked_at = null;
