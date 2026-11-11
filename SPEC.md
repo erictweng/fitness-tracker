@@ -4,6 +4,8 @@ Status: **spec v1, awaiting Eric's go.** Written 2026-11-11 from a 5-round inter
 Supersedes `docs/SPEC-v0-research.md` (kept for the WHOOP API research used in milestone M5).
 
 > **REOPENED 2026-11-11 (round 6):** Eric: "There will be multiple users using this, so it should be flexible depending on what the users want." Back to candidate until R6 is answered: single-user/allowlist auth, "Users & permissions", fixed defaults (500 kcal deficit, 1 g/lb protein, lb units, 3 AM day end, kcal+protein required) which become per-user settings with Eric's picks as defaults, saved-food ownership, backups (now hold other people's data), public-repo risk, non-goal "more than one user". R6 asks: who the users are, how they sign up, what each user can configure, shared vs private foods, whether users see each other.
+>
+> **R6 answers (locked):** small invited group (<~20) · invite-only: Eric adds emails in an admin page, users sign in with Google · per-user settings: goal + deficit/surplus, protein rule, units + day-end time, required macros (Eric's picks are defaults) · saved foods private per user · fully private logs; social features post-MVP. **No data on the Mac mini** → weekly Mac mini backup dropped; replacement asked in R7. R7 also: account deletion, admin visibility, deadline, non-goals + final check.
 
 ## Pitch & problem
 A phone-first web app where Eric logs what he eats in seconds and sees, every day, whether he hit his calorie and protein targets for his cut. Today he has no reliable record of intake; the goal is honest daily numbers he actually keeps logging. WHOOP activity data joins later, once the logging habit is proven.
