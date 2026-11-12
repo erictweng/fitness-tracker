@@ -120,4 +120,45 @@ do $$ begin
   end;
 end $$;
 
+
+-- ---------------- M1: onboarding RPC + source column
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
+do $$ begin
+  perform public.complete_onboarding('female', (current_date - interval '30 years')::date, 165, 60, 'light', 'cut', -500,
+    'per_kg', 2, 'kg', 'cm', 'America/New_York', current_date, 1700, 120, 'suggested');
+  assert (select onboarded_at is not null from public.profiles), 'onboarded';
+  assert (select count(*) from public.weigh_ins) = 1, 'first weigh-in saved';
+  assert (select kcal from public.targets order by effective_from desc limit 1) = 1700, 'first target saved';
+  assert (select source from public.entries limit 1) = 'app', 'entries default source = app';
+  -- Re-running onboarding the same day replaces the weigh-in instead of failing.
+  perform public.complete_onboarding('female', (current_date - interval '30 years')::date, 165, 61, 'light', 'cut', -500,
+    'per_kg', 2, 'kg', 'cm', 'America/New_York', current_date, 1700, 122, 'manual');
+  assert (select count(*) from public.weigh_ins) = 1, 'still one weigh-in';
+  assert (select weight_kg from public.weigh_ins) = 61, 'weigh-in updated';
+  begin
+    perform public.complete_onboarding('female', (current_date - interval '5 years')::date, 165, 61, 'light', 'cut', -500,
+      'per_kg', 2, 'kg', 'cm', 'UTC', current_date, 1700, 122, 'manual');
+    raise exception 'under-13 should be rejected';
+  exception when invalid_parameter_value then null; end;
+  begin
+    insert into public.entries (id, log_date, meal, kcal, source) values (gen_random_uuid(), current_date, 'lunch', 1, 'robot');
+    raise exception 'bad source should fail';
+  exception when check_violation then null; end;
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+do $$ begin
+  assert (select count(*) from public.weigh_ins) = 0, 'admin cannot see friend weigh-ins';
+  assert (select count(*) from public.targets) = 0, 'admin cannot see friend targets';
+end $$;
+reset role;
+set role anon;
+do $$ begin
+  begin
+    perform public.complete_onboarding('male', '2000-01-01'::date, 180, 80, 'light', 'cut', -500, 'per_lb', 1, 'lb', 'ftin', 'UTC', current_date, 2000, 176, 'manual');
+    raise exception 'anon should not onboard';
+  exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+
 \echo 'fitness-tracker migration checks passed'

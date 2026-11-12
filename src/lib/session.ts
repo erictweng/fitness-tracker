@@ -1,5 +1,7 @@
 import "server-only";
+import { redirect } from "next/navigation";
 import { createClient } from "./supabase/server";
+import { getProfile, type Profile } from "./profile";
 
 export type Me = {
   id: string;
@@ -29,4 +31,15 @@ export async function getMe(): Promise<Me | null> {
     isAdmin: profile.is_admin,
     onboarded: profile.onboarded_at !== null,
   };
+}
+
+/** For pages and actions that need a signed-in, onboarded user. */
+export async function requireUser() {
+  const supabase = await createClient();
+  if (!supabase) redirect("/");
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) redirect("/");
+  const profile = await getProfile(supabase, data.user.id);
+  if (!profile) redirect("/");
+  return { supabase, user: data.user, profile: profile as Profile };
 }

@@ -5,7 +5,7 @@ provider dashboards / Vercel. Values in `<angle brackets>` are placeholders.
 
 ## 1. Supabase project (free)
 1. https://supabase.com → New project → name `fitness-tracker`, region **West US**; save the DB password in your password manager.
-2. **SQL Editor** → paste all of `supabase/migrations/0001_init.sql` → Run.
+2. **SQL Editor** → run every file in `supabase/migrations/` in order (`0001_init.sql`, then `0002_m1_onboarding.sql`, …). Each is safe to re-run. When a new migration lands later, run just that file.
 3. **SQL Editor** → paste `supabase/bootstrap_admin.sql.example`, replace `<your-google-email>` with your Google address → Run. (Makes you the first admin. Don't commit that edit.)
 4. **Project Settings → Data API**: copy the Project URL. **Project Settings → API Keys**: copy the publishable key (`sb_publishable_…`).
 
@@ -39,3 +39,11 @@ npm install && npm run dev
 npm run check      # lint + typecheck + unit tests + build
 npm run db:check   # needs local Postgres (brew services start postgresql@17)
 ```
+
+## Browser tests (local Supabase)
+Needs Docker (`brew install colima docker && colima start`). The Supabase CLI comes with `npm install`.
+```bash
+npx supabase start   # local stack on 127.0.0.1:54321, applies supabase/migrations
+npm run e2e          # builds the app, signs in test users with a local-only password route, runs e2e/*.spec.ts
+```
+The password route (`/auth/test-login`) only works when `E2E_TEST_LOGIN=1` **and** Supabase is on localhost; it returns 404 everywhere else (unit-tested in `src/lib/test-login.test.ts`).

@@ -13,7 +13,13 @@
 - [ ] Eric — Vercel import + env vars (§3)
 - [ ] Eric + agent — Live check: Eric signs in on phone; uninvited account blocked; invited friend gets in (§4)
 
-## M1 Onboarding, settings, logging, Today — not started
+## M1 Onboarding, settings, logging, Today
+- [x] agent — Day rules (day-end hour, timezone, DST), meal auto-pick, Mifflin-St Jeor targets, BMR floor, entry validation (unit tests)
+- [x] agent — Migration 0002: source columns (app/claude) + atomic `complete_onboarding` RPC
+- [x] agent — Onboarding with live target preview; Settings (goal, deficit/surplus, protein rule, units, day end, required macros, body stats) + targets
+- [x] agent — Today: totals vs target in effect, entries by meal, quick add, edit, delete via sheet or swipe with 5 s Undo, past-day picker, future blocked
+- [x] agent — Local Supabase stack + Playwright e2e (two users, different settings, 1:30 AM rule, undo, isolation) + CI job
+- [ ] Eric — run `supabase/migrations/0002_m1_onboarding.sql` in the hosted project once it exists
 ## M2 Saved foods & meals — not started
 ## M3 Weight + targets — not started
 ## M4 History, offline, export, delete, backup — not started

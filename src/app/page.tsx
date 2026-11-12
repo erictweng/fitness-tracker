@@ -1,7 +1,10 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { getMe } from "@/lib/session";
-import { createClient } from "@/lib/supabase/server";
+import { getMe, requireUser } from "@/lib/session";
+import { targetFor, todayFor } from "@/lib/profile";
+import { isIsoDate } from "@/lib/domain/day";
+import { TodayView } from "./today/today-view";
+import type { EntryRow } from "./today/day-log";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { AUTH_ERROR_COPY, isAuthErrorCode } from "@/lib/auth-errors";
 
@@ -37,29 +40,31 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     );
   }
 
-  const supabase = await createClient();
-  await supabase?.rpc("touch_last_active");
+  if (!me.onboarded) redirect("/onboarding");
+  const { supabase, profile } = await requireUser();
+  await supabase.rpc("touch_last_active");
 
-  return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-6">
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Today</h1>
-        <form action="/auth/signout" method="post">
-          <button className="btn btn-ghost" type="submit">Sign out</button>
-        </form>
-      </header>
-      <section className="card">
-        <p className="text-muted">Signed in as</p>
-        <p className="text-lg font-semibold" data-testid="me-email">{me.email}</p>
-      </section>
-      <section className="card text-muted">
-        Logging arrives in M1. This build proves sign-in, invites and privacy.
-      </section>
-      {me.isAdmin && (
-        <Link className="btn btn-ghost" href="/admin" data-testid="admin-link">
-          Admin
-        </Link>
-      )}
-    </main>
-  );
+  const today = todayFor(profile);
+  const rawDate = Array.isArray(sp.date) ? sp.date[0] : sp.date;
+  const date = rawDate && isIsoDate(rawDate) && rawDate <= today ? rawDate : today;
+
+  const [target, { data: entries }] = await Promise.all([
+    targetFor(supabase, date),
+    supabase
+      .from("entries")
+      .select("id, name, meal, kcal, protein_g, fat_g, carbs_g, source, log_date")
+      .eq("log_date", date)
+      .is("deleted_at", null)
+      .order("logged_at", { ascending: true }),
+  ]);
+
+  const rows: EntryRow[] = (entries ?? []).map((e) => ({
+    ...e,
+    kcal: Number(e.kcal),
+    protein_g: e.protein_g === null ? null : Number(e.protein_g),
+    fat_g: e.fat_g === null ? null : Number(e.fat_g),
+    carbs_g: e.carbs_g === null ? null : Number(e.carbs_g),
+  })) as EntryRow[];
+
+  return <TodayView profile={profile} date={date} today={today} target={target} entries={rows} />;
 }
