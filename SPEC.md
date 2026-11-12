@@ -77,6 +77,8 @@ A phone-first web app where a small invited group logs what they eat in seconds 
 - `entries`: id (**client-generated UUID**), user_id, log_date, logged_at (UTC), meal, food_id?, name, servings?, grams?, **kcal, protein_g?, fat_g?, carbs_g? (snapshot at log time)**, deleted_at?, updated_at.
 - `weigh_ins`: id (client UUID), user_id, log_date (unique per user), weight_kg, deleted_at?.
 - `targets`: id, user_id, effective_from, kcal, protein_g, source (suggested/manual).
+- `workouts` (M4.5): id (client UUID), user_id, log_date, type, minutes, kcal?, notes?, source (app/claude/whoop), external_id?, oauth_client_id?, deleted_at?, updated_at.
+- `entries` and `weigh_ins` also carry `source` (app/claude) and `oauth_client_id?` from M1, so the connector needs no schema change.
 - Stored metric internally (kg, cm); converted for display.
 - Entries copy the food's numbers when logged, so editing or archiving a saved food never rewrites history. Deleting a saved food archives it.
 - Soft delete (`deleted_at`) for entries and weigh-ins so Undo works; account deletion is a hard delete.
@@ -143,6 +145,13 @@ A phone-first web app where a small invited group logs what they eat in seconds 
 - **Public repo** (Eric's call): `.env*` gitignored; gitleaks pre-commit hook; GitHub push protection on; only the Supabase anon key in client code; no real user data in seeds, tests, fixtures or Action logs.
 - Errors: Vercel logs only.
 
+## Workouts (with M4.5)
+- **A workout:** type (free text, e.g. "push day", "5k run", up to 60 chars), minutes (1–600), calories burned (optional, 0–3,000), notes (optional, up to 280 chars), date (by the user's day-end rule), source (`app` / `claude`, later `whoop`) + external id (for WHOOP matching in M5).
+- **Calorie target is unaffected:** workout calories show next to the day's numbers for context only (fixed daily target, round 1).
+- **Logging:** a small Workouts card on Today (add / tap to edit / swipe delete with Undo) and Claude's `log_workout`.
+- **WHOOP overlap:** decided in M5; the stored source + external id make matching possible.
+- **Acceptance:** log a workout in the app and one via Claude; both show on Today with their source; the calorie target doesn't change; another user can't see them (RLS test).
+
 ## Claude connector (M4.5, right after the MVP)
 Each user can connect their own Claude (Claude app on phone/web as a custom connector, and Claude Code) and talk to it to log and check their day.
 - **How it connects:** a remote MCP server at `/api/mcp` in this app (Streamable HTTP, public HTTPS on Vercel). Sign-in uses Supabase Auth's OAuth 2.1 server with dynamic client registration; Claude registers itself, the user signs in with Google and approves on our consent page. Redirects allowed: `https://claude.ai/api/mcp/auth_callback` and Claude Code's loopback.
@@ -150,7 +159,7 @@ Each user can connect their own Claude (Claude app on phone/web as a custom conn
 - **Tools (v1):**
   - `log_food` — name, meal?, date?, kcal, protein, fat?, carbs?; Claude estimates the numbers from what you said. Respects the user's required-macro settings.
   - `log_weight` — weight in the user's unit, date?.
-  - `log_workout` — see Workouts (open in round 9).
+  - `log_workout` — type, minutes, kcal?, notes?, date?.
   - `get_day` — totals, targets, what's left, entries (date? defaults to today by the user's day-end rule).
   - `list_recent_foods` — so Claude can reuse saved foods instead of guessing.
   - Read/write only; **no** tools to change targets or settings, and no deletes (Undo happens in the app).
@@ -210,6 +219,7 @@ Each user can connect their own Claude (Claude app on phone/web as a custom conn
 - Claude's entries save immediately, marked "via Claude", undoable in the app — Eric
 - Every invited user can connect their own Claude — Eric
 - Connector ships as M4.5 right after the MVP; Nov 20 date unchanged — Eric
+- Workouts: type, minutes, kcal?, notes; context only for the calorie target; logged in app + via Claude; WHOOP matching decided in M5 — Eric
 - No delete tool for Claude — Decided by agent (mistakes are undone in the app; limits damage from a misheard request)
 - Data stored metric, shown in the user's unit — Decided by agent (one source of truth, clean unit switching)
 - No invite emails sent; Eric shares the link — Decided by agent (no email provider needed for < 20 people)
@@ -221,7 +231,7 @@ Each user can connect their own Claude (Claude app on phone/web as a custom conn
 - Weekly suggestions, never silent — Decided by agent
 
 ## Open questions / parked
-- **Round 8 (open, 2026-11-11): Claude via MCP.** Eric: "I want to be able to talk to my Claude and MCP connect into the app and have it update my food and fitness automatically." Checked: Supabase Auth has an OAuth 2.1 server with dynamic client registration made for MCP (tokens are normal user JWTs, so RLS applies); Claude custom connectors take a remote MCP URL with OAuth (DCR or CIMD), redirect `https://claude.ai/api/mcp/auth_callback`, and connect from Anthropic's cloud (server must be public HTTPS — Vercel is). **R8 answers locked** (1a 2abd 3a 4a 5a) → see "Claude connector" section. **Round 9 open: workouts** (fields, effect on calorie target, logging in the app too, WHOOP overlap later).
+- **Round 8 (open, 2026-11-11): Claude via MCP.** Eric: "I want to be able to talk to my Claude and MCP connect into the app and have it update my food and fitness automatically." Checked: Supabase Auth has an OAuth 2.1 server with dynamic client registration made for MCP (tokens are normal user JWTs, so RLS applies); Claude custom connectors take a remote MCP URL with OAuth (DCR or CIMD), redirect `https://claude.ai/api/mcp/auth_callback`, and connect from Anthropic's cloud (server must be public HTTPS — Vercel is). **R8 answers locked** (1a 2abd 3a 4a 5a) → see "Claude connector" section. **R9 answers locked** (1a 2a 3a 4a) → see "Workouts" section.
 - Native iPhone app — parked.
 - Whether this replaces the "fitness/nutrition tracking" line on the AI Workflow Harness resume entry — parked.
 
