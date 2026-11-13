@@ -34,12 +34,29 @@ export async function addEntry(form: FormData): Promise<EntryResult> {
   }
   if (parsed.needsConfirm && form.get("confirm") !== "1") return { ok: false, needsConfirm: true };
 
+  let foodId: string | null = null;
+  if (form.get("save_food") === "on") {
+    if (!parsed.value.name) return { ok: false, errors: { name: "Name it to save it as a food." } };
+    // Only once per entry id: a retried submit must not create a second food.
+    const { data: existing } = await supabase.from("entries").select("food_id").eq("id", id).maybeSingle();
+    if (existing) return { ok: true };
+    const { data: food, error: foodErr } = await supabase
+      .from("foods")
+      .insert({ name: parsed.value.name, kcal: parsed.value.kcal, protein_g: parsed.value.protein_g, fat_g: parsed.value.fat_g, carbs_g: parsed.value.carbs_g })
+      .select("id")
+      .single();
+    if (foodErr) return { ok: false, message: "Couldn't save the food." };
+    foodId = food.id;
+  }
+
   const loggedAt = String(form.get("logged_at") ?? "");
   const { error } = await supabase.from("entries").upsert(
     {
       id,
       log_date: logDate,
       meal,
+      food_id: foodId,
+      servings: foodId ? 1 : null,
       ...parsed.value,
       logged_at: Number.isNaN(Date.parse(loggedAt)) ? new Date().toISOString() : loggedAt,
       source: "app",
@@ -51,6 +68,7 @@ export async function addEntry(form: FormData): Promise<EntryResult> {
     return { ok: false, message: "Couldn't save. Try again." };
   }
   revalidatePath("/");
+  revalidatePath("/foods");
   return { ok: true };
 }
 

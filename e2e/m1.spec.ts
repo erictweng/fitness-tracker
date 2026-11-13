@@ -15,6 +15,7 @@ test.describe.configure({ mode: "serial" });
 
 async function addFood(page: Page, f: { name?: string; kcal: string; protein?: string; fat?: string; carbs?: string }) {
   await page.getByTestId("add-food").click();
+  await page.getByTestId("quick-add").click();
   const sheet = page.getByRole("dialog", { name: "Quick add" });
   if (f.name) await sheet.getByLabel("Name (optional)").fill(f.name);
   await sheet.getByLabel("Calories").fill(f.kcal);

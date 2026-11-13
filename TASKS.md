@@ -20,6 +20,12 @@
 - [x] agent — Today: totals vs target in effect, entries by meal, quick add, edit, delete via sheet or swipe with 5 s Undo, past-day picker, future blocked
 - [x] agent — Local Supabase stack + Playwright e2e (two users, different settings, 1:30 AM rule, undo, isolation) + CI job
 - [ ] Eric — run `supabase/migrations/0002_m1_onboarding.sql` in the hosted project once it exists
-## M2 Saved foods & meals — not started
+## M2 Saved foods & meals
+- [x] agent — Migration 0003: same-owner triggers (meal items / entries can't point at another user's food), indexes
+- [x] agent — Add sheet: search, recents, meals, saved foods; servings or grams with live preview; 3-tap re-log
+- [x] agent — Quick add "Save as food"; Foods & meals page: create/edit/archive/restore foods, build/edit/delete meals
+- [x] agent — Entries snapshot nutrition; archived foods hidden from pickers but meals still log them
+- [x] agent — e2e (3-tap re-log, grams, double-tap, history unchanged after edit, meals, archive, isolation) + phone screenshots
+- [ ] Eric — run `supabase/migrations/0003_m2_foods.sql` in the hosted Supabase SQL Editor
 ## M3 Weight + targets — not started
 ## M4 History, offline, export, delete, backup — not started

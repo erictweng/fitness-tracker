@@ -161,4 +161,36 @@ do $$ begin
 end $$;
 reset role;
 
+-- ---------------- M2: foods/meals can only point at your own rows
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+insert into public.foods (id, name, kcal, protein_g) values ('22222222-2222-2222-2222-22222222222a', 'Admin oats', 300, 10);
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
+insert into public.foods (id, name, kcal, protein_g, serving_label, serving_g) values ('22222222-2222-2222-2222-22222222222b', 'Rice', 130, 2.7, '100 g', 100);
+insert into public.meals (id, name) values ('33333333-3333-3333-3333-33333333333b', 'Usual lunch');
+insert into public.meal_items (meal_id, food_id, servings) values ('33333333-3333-3333-3333-33333333333b', '22222222-2222-2222-2222-22222222222b', 1.5);
+do $$ begin
+  assert (select count(*) from public.foods) = 1, 'friend sees only own food';
+  begin
+    insert into public.meal_items (meal_id, food_id) values ('33333333-3333-3333-3333-33333333333b', '22222222-2222-2222-2222-22222222222a');
+    raise exception 'meal item pointing at another user''s food should fail';
+  exception when insufficient_privilege then null; end;
+  begin
+    insert into public.entries (id, log_date, meal, kcal, food_id) values (gen_random_uuid(), current_date, 'lunch', 1, '22222222-2222-2222-2222-22222222222a');
+    raise exception 'entry pointing at another user''s food should fail';
+  exception when insufficient_privilege then null; end;
+  insert into public.entries (id, log_date, meal, kcal, food_id) values (gen_random_uuid(), current_date, 'lunch', 195, '22222222-2222-2222-2222-22222222222b');
+  -- Saved foods are archived, never deleted, while entries point at them.
+  begin
+    delete from public.foods where id = '22222222-2222-2222-2222-22222222222b';
+    raise exception 'deleting a used food should fail';
+  exception when foreign_key_violation then null; end;
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+do $$ begin
+  assert (select count(*) from public.meals) = 0, 'admin cannot see friend meals';
+  assert (select count(*) from public.meal_items) = 0, 'admin cannot see friend meal items';
+end $$;
+reset role;
+
 \echo 'fitness-tracker migration checks passed'

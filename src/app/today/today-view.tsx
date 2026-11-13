@@ -3,6 +3,7 @@ import { addDays } from "@/lib/domain/day";
 import { totals } from "@/lib/domain/entries";
 import type { Profile, Target } from "@/lib/profile";
 import { DayLog, type EntryRow } from "./day-log";
+import type { Picker } from "./add-sheet";
 
 type Props = {
   profile: Profile;
@@ -10,6 +11,7 @@ type Props = {
   today: string;
   target: Target | null;
   entries: EntryRow[];
+  picker: Picker;
 };
 
 function fmtDate(iso: string, today: string) {
@@ -19,7 +21,7 @@ function fmtDate(iso: string, today: string) {
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-export function TodayView({ profile, date, today, target, entries }: Props) {
+export function TodayView({ profile, date, today, target, entries, picker }: Props) {
   const t = totals(entries);
   const kcalLeft = target ? target.kcal - t.kcal : null;
   const proteinLeft = target ? Math.round((target.protein_g - t.protein) * 10) / 10 : null;
@@ -43,7 +45,10 @@ export function TodayView({ profile, date, today, target, entries }: Props) {
           </form>
           {!isToday && <Link className="btn btn-ghost px-3" href={`/?date=${addDays(date, 1)}`} aria-label="Next day">›</Link>}
         </nav>
-        <Link className="btn btn-ghost px-3" href="/settings" aria-label="Settings">⚙︎</Link>
+        <span className="flex gap-1">
+          <Link className="btn btn-ghost px-3" href="/foods" aria-label="Foods and meals">☰</Link>
+          <Link className="btn btn-ghost px-3" href="/settings" aria-label="Settings">⚙︎</Link>
+        </span>
       </header>
       <h1 className="text-2xl font-bold" data-testid="day-title">{fmtDate(date, today)}</h1>
 
@@ -72,6 +77,7 @@ export function TodayView({ profile, date, today, target, entries }: Props) {
         timezone={profile.timezone}
         dayEndHour={profile.day_end_hour}
         required={{ protein: profile.require_protein, fat: profile.require_fat, carbs: profile.require_carbs }}
+        picker={picker}
       />
     </main>
   );

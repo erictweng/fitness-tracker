@@ -46,3 +46,17 @@ export function instantAt(isoDate: string, hh: number, mm: number, tz: string): 
   const asLocal = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute);
   return new Date(guess - (asLocal - guess));
 }
+
+/** Fast onboarding through the real UI (male, 5'10", 180 lb, moderate, cut unless overridden). */
+export async function onboard(page: Page, o: { goal?: "cut" | "maintain" | "bulk" } = {}) {
+  await page.waitForURL(/\/onboarding$/);
+  await page.getByLabel("Sex", { exact: true }).selectOption("male");
+  await page.getByLabel("Birth date").fill("2000-01-15");
+  await page.getByLabel("Height feet").fill("5");
+  await page.getByLabel("Height inches").fill("10");
+  await page.getByLabel("Weight", { exact: true }).fill("180");
+  await page.getByLabel("Activity").selectOption("moderate");
+  if (o.goal) await page.getByLabel("Goal").selectOption(o.goal);
+  await page.getByRole("button", { name: "Start logging" }).click();
+  await page.waitForURL((u) => u.pathname === "/");
+}

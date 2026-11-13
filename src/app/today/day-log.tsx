@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { logDateFor, mealFor, MEALS, type Meal } from "@/lib/domain/day";
 import { parseEntry, type Required } from "@/lib/domain/entries";
 import { addEntry, deleteEntry, restoreEntry, updateEntry, type EntryResult } from "../entries/actions";
+import { AddSheet, type Picker } from "./add-sheet";
 
 export type EntryRow = {
   id: string;
@@ -24,12 +25,15 @@ type Props = {
   timezone: string;
   dayEndHour: number;
   required: Required;
+  picker: Picker;
 };
 
 const MEAL_LABEL: Record<Meal, string> = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snacks" };
 
-export function DayLog({ entries, date, isToday, timezone, dayEndHour, required }: Props) {
-  const [adding, setAdding] = useState(false);
+export function DayLog({ entries, date, isToday, timezone, dayEndHour, required, picker }: Props) {
+  const [adding, setAdding] = useState<false | "pick" | "quick">(false);
+  // "Today" is decided on the phone at entry time (spec: day rules).
+  const logDate = () => (isToday ? logDateFor(new Date(), timezone, dayEndHour) : date);
   const [editing, setEditing] = useState<EntryRow | null>(null);
   const [undo, setUndo] = useState<{ id: string; name: string } | null>(null);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
@@ -92,27 +96,35 @@ export function DayLog({ entries, date, isToday, timezone, dayEndHour, required 
 
       <button
         type="button"
-        className="btn fixed bottom-6 right-6 h-16 w-16 rounded-full text-3xl shadow-lg"
+        className="btn fixed bottom-6 right-6 h-16 w-16 rounded-full! text-3xl shadow-lg"
         aria-label="Add food"
-        onClick={() => setAdding(true)}
+        onClick={() => setAdding("pick")}
         data-testid="add-food"
       >
         +
       </button>
 
-      {adding && (
+      {adding === "pick" && (
+        <AddSheet
+          picker={picker}
+          defaultMeal={mealFor(new Date(), timezone, dayEndHour)}
+          logDate={logDate}
+          onClose={() => setAdding(false)}
+          onQuickAdd={() => setAdding("quick")}
+        />
+      )}
+      {adding === "quick" && (
         <EntrySheet
           title="Quick add"
+          allowSaveAsFood
           required={required}
           initial={null}
           onClose={() => setAdding(false)}
           submit={(fd) => addEntry(fd)}
           prepare={(fd) => {
-            const now = new Date();
             fd.set("id", crypto.randomUUID());
-            fd.set("logged_at", now.toISOString());
-            // "Today" is decided on the phone at entry time (spec: day rules).
-            fd.set("log_date", isToday ? logDateFor(now, timezone, dayEndHour) : date);
+            fd.set("logged_at", new Date().toISOString());
+            fd.set("log_date", logDate());
           }}
           defaultMeal={mealFor(new Date(), timezone, dayEndHour)}
         />
@@ -175,9 +187,10 @@ type SheetProps = {
   submit: (fd: FormData) => Promise<EntryResult>;
   prepare: (fd: FormData) => void;
   onDelete?: () => void;
+  allowSaveAsFood?: boolean;
 };
 
-function EntrySheet({ title, required, initial, defaultMeal, onClose, submit, prepare, onDelete }: SheetProps) {
+function EntrySheet({ title, required, initial, defaultMeal, onClose, submit, prepare, onDelete, allowSaveAsFood }: SheetProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [warning, setWarning] = useState<string | null>(null);
   const [confirmBig, setConfirmBig] = useState(false);
@@ -243,6 +256,11 @@ function EntrySheet({ title, required, initial, defaultMeal, onClose, submit, pr
             {MEALS.map((m) => <option key={m} value={m}>{MEAL_LABEL[m]}</option>)}
           </select>
         </label>
+        {allowSaveAsFood && (
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="save_food" /> Save as food (needs a name) for 2-tap re-logging
+          </label>
+        )}
         {errors.log_date && <p className="text-sm text-warn">{errors.log_date}</p>}
         {warning && <p role="alert" className="text-sm text-warn">{warning} Tap Save again to keep it.</p>}
         {confirmBig && <p role="alert" className="text-sm text-warn">That&apos;s over 5,000 kcal in one entry. Sure? Tap Save again.</p>}

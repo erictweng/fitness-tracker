@@ -4,6 +4,7 @@ import { getMe, requireUser } from "@/lib/session";
 import { targetFor, todayFor } from "@/lib/profile";
 import { isIsoDate } from "@/lib/domain/day";
 import { TodayView } from "./today/today-view";
+import { loadPicker } from "@/lib/foods-data";
 import type { EntryRow } from "./today/day-log";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { AUTH_ERROR_COPY, isAuthErrorCode } from "@/lib/auth-errors";
@@ -48,8 +49,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const rawDate = Array.isArray(sp.date) ? sp.date[0] : sp.date;
   const date = rawDate && isIsoDate(rawDate) && rawDate <= today ? rawDate : today;
 
-  const [target, { data: entries }] = await Promise.all([
+  const [target, picker, { data: entries }] = await Promise.all([
     targetFor(supabase, date),
+    loadPicker(supabase),
     supabase
       .from("entries")
       .select("id, name, meal, kcal, protein_g, fat_g, carbs_g, source, log_date")
@@ -66,5 +68,5 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     carbs_g: e.carbs_g === null ? null : Number(e.carbs_g),
   })) as EntryRow[];
 
-  return <TodayView profile={profile} date={date} today={today} target={target} entries={rows} />;
+  return <TodayView profile={profile} date={date} today={today} target={target} entries={rows} picker={picker} />;
 }
