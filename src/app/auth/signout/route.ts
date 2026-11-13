@@ -5,5 +5,5 @@ import { siteUrl } from "@/lib/supabase/config";
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   if (supabase) await supabase.auth.signOut();
-  return NextResponse.redirect(`${siteUrl(request.nextUrl.origin)}/`, 303);
+  return NextResponse.redirect(`${siteUrl(request)}/`, 303);
 }

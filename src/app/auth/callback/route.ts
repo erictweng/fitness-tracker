@@ -4,7 +4,7 @@ import { siteUrl } from "@/lib/supabase/config";
 import { mapCallbackError } from "@/lib/auth-errors";
 
 export async function GET(request: NextRequest) {
-  const origin = siteUrl(request.nextUrl.origin);
+  const origin = siteUrl(request);
   const params = request.nextUrl.searchParams;
   const code = params.get("code");
 

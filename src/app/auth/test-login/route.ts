@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     password: String(form.get("password") ?? ""),
   });
   if (error) return new NextResponse("Bad login", { status: 401 });
-  return NextResponse.redirect(`${siteUrl(request.nextUrl.origin)}/`, 303);
+  return NextResponse.redirect(`${siteUrl(request)}/`, 303);
 }
 
 export async function GET() {

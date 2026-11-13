@@ -23,13 +23,17 @@ provider dashboards / Vercel. Values in `<angle brackets>` are placeholders.
 2. Environment variables (tick Production, Preview, Development):
    - `NEXT_PUBLIC_SUPABASE_URL` = Project URL (no `/rest/v1`)
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` = publishable key (public by design; RLS protects the data)
-   - `NEXT_PUBLIC_SITE_URL` = the stable production URL (not a per-deploy URL)
+   - `NEXT_PUBLIC_SITE_URL` = the stable production URL (not a per-deploy URL). Only a fallback: sign-in always returns to the address the browser used.
 3. Deploy (redeploy after any env change). Open the site on your phone → **Sign in with Google** → you land on "Today" with an **Admin** button.
 
 ## 4. Check it works (M0 acceptance)
 - Sign in with a second Google account that is **not** invited → "This app is invite-only".
 - Admin → invite that account → sign in again → it gets in and sees no Admin button.
 - The database proof (admin can't read another user's rows) runs in CI on every push: `scripts/db-check.sh`.
+
+## Sign-in troubleshooting
+- Google succeeds but you land back on the sign-in page or on another site: in **Supabase → Authentication → URL Configuration**, the Site URL and Redirect URLs must be your *actual* Vercel address (Settings → Domains), e.g. `https://<name>.vercel.app/**`. If `redirect_to` isn't allow-listed, Supabase silently sends you to the Site URL instead.
+- `redirect_uri_mismatch` from Google: the redirect URI must be the Supabase `…/auth/v1/callback`.
 
 ## Local dev
 ```bash

@@ -16,13 +16,29 @@ describe("getSupabaseConfig", () => {
   });
 });
 
+const req = (h: Record<string, string>, origin = "http://localhost:3000") => ({
+  headers: { get: (k: string) => h[k.toLowerCase()] ?? null },
+  nextUrl: { origin },
+});
+
 describe("siteUrl", () => {
-  it("prefers NEXT_PUBLIC_SITE_URL", () => {
-    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://ft.example.com/");
-    expect(siteUrl("http://localhost:3000")).toBe("https://ft.example.com");
+  it("uses the host the browser used, even if NEXT_PUBLIC_SITE_URL points elsewhere", () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://fitness-tracker.vercel.app");
+    expect(siteUrl(req({ host: "fitness-tracker-vert-three.vercel.app", "x-forwarded-proto": "https" })))
+      .toBe("https://fitness-tracker-vert-three.vercel.app");
   });
-  it("falls back to the request origin", () => {
+  it("prefers x-forwarded-host (Vercel) over host", () => {
+    expect(siteUrl(req({ host: "internal:3000", "x-forwarded-host": "app.example.com", "x-forwarded-proto": "https" })))
+      .toBe("https://app.example.com");
+  });
+  it("defaults to http for loopback and https otherwise", () => {
+    expect(siteUrl(req({ host: "127.0.0.1:3100" }))).toBe("http://127.0.0.1:3100");
+    expect(siteUrl(req({ host: "ft.example.com" }))).toBe("https://ft.example.com");
+  });
+  it("falls back to NEXT_PUBLIC_SITE_URL, then the request origin, without a Host header", () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://ft.example.com/");
+    expect(siteUrl(req({}))).toBe("https://ft.example.com");
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
-    expect(siteUrl("http://localhost:3000")).toBe("http://localhost:3000");
+    expect(siteUrl(req({}))).toBe("http://localhost:3000");
   });
 });

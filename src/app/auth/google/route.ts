@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/supabase/config";
 
 export async function GET(request: NextRequest) {
-  const origin = siteUrl(request.nextUrl.origin);
+  const origin = siteUrl(request);
   const supabase = await createClient();
   if (!supabase) {
     return NextResponse.redirect(`${origin}/?auth_error=not_configured`, 303);
