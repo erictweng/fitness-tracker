@@ -229,6 +229,7 @@ Each user can connect their own Claude (Claude app on phone/web as a custom conn
 - Calorie floor at BMR — Decided by agent
 - Last write wins — Decided by agent
 - Weekly suggestions, never silent — Decided by agent
+- Suggestion card shows from Monday until acted on or the week ends; at most one target change per week (not only on Monday itself, so a missed Monday isn't a missed week) — Decided by agent
 
 ## Open questions / parked
 - **Round 8 (open, 2026-11-11): Claude via MCP.** Eric: "I want to be able to talk to my Claude and MCP connect into the app and have it update my food and fitness automatically." Checked: Supabase Auth has an OAuth 2.1 server with dynamic client registration made for MCP (tokens are normal user JWTs, so RLS applies); Claude custom connectors take a remote MCP URL with OAuth (DCR or CIMD), redirect `https://claude.ai/api/mcp/auth_callback`, and connect from Anthropic's cloud (server must be public HTTPS — Vercel is). **R8 answers locked** (1a 2abd 3a 4a 5a) → see "Claude connector" section. **R9 answers locked** (1a 2a 3a 4a) → see "Workouts" section.

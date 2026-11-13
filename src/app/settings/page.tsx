@@ -2,9 +2,8 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/session";
-import { latestWeightKg, targetFor, todayFor } from "@/lib/profile";
-import { ageOn } from "@/lib/domain/day";
-import { suggestTargets } from "@/lib/domain/targets";
+import { targetFor, todayFor } from "@/lib/profile";
+import { suggestionFor } from "@/lib/suggest";
 import { SettingsForm, TargetsForm } from "./settings-forms";
 
 export default async function SettingsPage() {
@@ -12,22 +11,8 @@ export default async function SettingsPage() {
   const { supabase, profile } = await requireUser();
   if (!profile.onboarded_at) redirect("/onboarding");
   const today = todayFor(profile);
-  const [target, weightKg] = await Promise.all([targetFor(supabase, today), latestWeightKg(supabase)]);
-
-  const suggestion =
-    weightKg && profile.sex && profile.birth_date && profile.height_cm && profile.activity_level
-      ? suggestTargets({
-          sex: profile.sex,
-          weightKg,
-          heightCm: profile.height_cm,
-          ageYears: ageOn(profile.birth_date, today),
-          activity: profile.activity_level,
-          goal: profile.goal,
-          adjustKcal: profile.goal_adjust_kcal,
-          proteinRule: profile.protein_rule,
-          proteinValue: profile.protein_value,
-        })
-      : null;
+  const [target, sugg] = await Promise.all([targetFor(supabase, today), suggestionFor(supabase, profile, today)]);
+  const suggestion = sugg?.suggestion ?? null;
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-6">

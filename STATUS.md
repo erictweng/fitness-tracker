@@ -1,9 +1,8 @@
 # Fitness Tracker — STATUS
 
-Updated 2026-11-12. **M2 done.** Live at https://fitness-tracker-vert-three.vercel.app (Eric signed in 2026-11-12).
+Updated 2026-11-12. **M3 done.** Live at https://fitness-tracker-vert-three.vercel.app
 
-- M0: done; live sign-in works. Pending: Eric's uninvited-account check.
-- M1: onboarding, settings, quick add / edit / delete + Undo, Today, past days.
-- M2: saved foods & meals, recents, search, servings/grams, archive. Needs migration 0003 run on the hosted DB.
-- Verified: 68 unit tests, migration checks on Postgres 17, Playwright e2e 5/5 on local Supabase (CI too).
-- Next: M3 weight + weekly target suggestions. Then M4, launch Fri 2026-11-20, M4.5 Claude connector + workouts.
+- M0–M2: done (sign-in, logging, saved foods & meals). Pending: Eric's uninvited-account check.
+- M3: weigh-ins, 7-day average, trend chart, weekly target suggestions. Needs migrations 0003 + 0004 on the hosted DB.
+- Verified: 82 unit tests, migration checks on Postgres 17, Playwright e2e 7/7 (+ screenshots) on local Supabase, CI.
+- Next: M4 history charts, offline logging, export, account deletion, weekly encrypted backup. Launch Fri 2026-11-20. Then M4.5 Claude connector + workouts.

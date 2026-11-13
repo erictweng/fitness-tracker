@@ -49,6 +49,17 @@ test("phone screenshots", async ({ browser }) => {
   await page.screenshot({ path: `${dir}/4-amount.png` });
   await page.getByRole("button", { name: "Close" }).click();
   await page.screenshot({ path: `${dir}/2-today.png` });
+  await page.goto("/weight");
+  for (let i = 9; i >= 1; i--) {
+    const d = new Date(Date.now() - i * 86_400_000).toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+    await page.getByLabel("Day", { exact: true }).fill(d);
+    const v = (180 + 0.4 * i + (i % 3) * 0.3).toFixed(1);
+    await page.getByLabel("Weight", { exact: true }).fill(v);
+    await page.getByRole("button", { name: "Save weigh-in" }).click();
+    await page.getByTestId("undo-toast").filter({ hasText: `Saved ${v}` }).waitFor();
+  }
+  await page.reload();
+  await page.screenshot({ path: `${dir}/7-weight.png`, fullPage: true });
   await page.goto("/settings");
   await page.screenshot({ path: `${dir}/6-settings.png`, fullPage: true });
   await ctx.close();

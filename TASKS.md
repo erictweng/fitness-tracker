@@ -27,5 +27,10 @@
 - [x] agent — Entries snapshot nutrition; archived foods hidden from pickers but meals still log them
 - [x] agent — e2e (3-tap re-log, grams, double-tap, history unchanged after edit, meals, archive, isolation) + phone screenshots
 - [ ] Eric — run `supabase/migrations/0003_m2_foods.sql` in the hosted Supabase SQL Editor
-## M3 Weight + targets — not started
+## M3 Weight + targets
+- [x] agent — Migration 0004: `save_weigh_in` (one per day, returns previous value for Undo), `suggestion_dismissed_week`
+- [x] agent — Weight screen: log any past day, replace with Undo, delete with Undo, 7-day average (≥3 weigh-ins), trend chart, recent list
+- [x] agent — Today weight line; weekly suggestion card (from Monday, once a week, Accept/Dismiss); targets use 7-day average weight
+- [x] agent — Unit tests (average window, fallback, Monday maths, suggestion rules) + e2e (lb & kg users, accept, dismiss, BMR floor)
+- [ ] Eric — run `supabase/migrations/0004_m3_weight.sql` in the hosted Supabase SQL Editor
 ## M4 History, offline, export, delete, backup — not started

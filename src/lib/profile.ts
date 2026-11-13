@@ -24,6 +24,7 @@ export type Profile = {
   require_carbs: boolean;
   timezone: string;
   onboarded_at: string | null;
+  suggestion_dismissed_week: string | null;
 };
 
 export async function getProfile(supabase: SupabaseClient, userId: string): Promise<Profile | null> {
@@ -53,17 +54,6 @@ export async function targetFor(supabase: SupabaseClient, date: string): Promise
     .limit(1)
     .maybeSingle();
   return data ?? null;
-}
-
-export async function latestWeightKg(supabase: SupabaseClient): Promise<number | null> {
-  const { data } = await supabase
-    .from("weigh_ins")
-    .select("weight_kg")
-    .is("deleted_at", null)
-    .order("log_date", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data ? Number(data.weight_kg) : null;
 }
 
 export function isValidTimeZone(tz: string): boolean {

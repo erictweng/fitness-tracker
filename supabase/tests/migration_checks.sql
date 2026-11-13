@@ -193,4 +193,32 @@ do $$ begin
 end $$;
 reset role;
 
+-- ---------------- M3: one weigh-in per day, replace returns previous value
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
+do $$
+declare v numeric;
+begin
+  v := public.save_weigh_in(gen_random_uuid(), current_date - 3, 80);
+  assert v is null, 'first weigh-in of the day returns null';
+  v := public.save_weigh_in(gen_random_uuid(), current_date - 3, 79.5);
+  assert v = 80, 'replacing returns the previous value';
+  assert (select count(*) from public.weigh_ins where log_date = current_date - 3) = 1, 'still one row for the day';
+  update public.weigh_ins set deleted_at = now() where log_date = current_date - 3;
+  v := public.save_weigh_in(gen_random_uuid(), current_date - 3, 79);
+  assert v is null, 'a deleted day counts as empty';
+  assert (select deleted_at is null from public.weigh_ins where log_date = current_date - 3), 'saving revives the day';
+  begin
+    perform public.save_weigh_in(gen_random_uuid(), current_date + 5, 79);
+    raise exception 'future weigh-in should fail';
+  exception when invalid_parameter_value then null; end;
+  update public.profiles set suggestion_dismissed_week = current_date where user_id = auth.uid();
+  assert (select suggestion_dismissed_week from public.profiles) = current_date, 'user can dismiss suggestions';
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+do $$ begin
+  assert (select count(*) from public.weigh_ins) = 0, 'admin still cannot see friend weigh-ins';
+end $$;
+reset role;
+
 \echo 'fitness-tracker migration checks passed'

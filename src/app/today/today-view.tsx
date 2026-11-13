@@ -4,6 +4,8 @@ import { totals } from "@/lib/domain/entries";
 import type { Profile, Target } from "@/lib/profile";
 import { DayLog, type EntryRow } from "./day-log";
 import type { Picker } from "./add-sheet";
+import { SuggestionCard } from "./suggestion-card";
+import { toDisplayWeight } from "@/lib/domain/units";
 
 type Props = {
   profile: Profile;
@@ -12,6 +14,8 @@ type Props = {
   target: Target | null;
   entries: EntryRow[];
   picker: Picker;
+  weight: { latestKg: number | null; avgKg: number | null };
+  suggestion: { kcal: number; protein: number; fromKcal: number; fromProtein: number } | null;
 };
 
 function fmtDate(iso: string, today: string) {
@@ -21,7 +25,8 @@ function fmtDate(iso: string, today: string) {
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-export function TodayView({ profile, date, today, target, entries, picker }: Props) {
+export function TodayView({ profile, date, today, target, entries, picker, weight, suggestion }: Props) {
+  const u = profile.weight_unit;
   const t = totals(entries);
   const kcalLeft = target ? target.kcal - t.kcal : null;
   const proteinLeft = target ? Math.round((target.protein_g - t.protein) * 10) / 10 : null;
@@ -69,6 +74,15 @@ export function TodayView({ profile, date, today, target, entries, picker }: Pro
         />
       </section>
       <p className="text-sm text-muted" data-testid="fat-carbs">Fat {t.fat}g · Carbs {t.carbs}g</p>
+      <Link href="/weight" className="card flex items-center justify-between py-3" data-testid="weight-line">
+        <span className="text-sm text-muted">Weight</span>
+        <span className="tabular-nums">
+          {weight.latestKg === null ? "Log a weigh-in" : `${toDisplayWeight(weight.latestKg, u).toFixed(1)} ${u}`}
+          {weight.avgKg !== null && <span className="text-muted"> · 7-day avg {toDisplayWeight(weight.avgKg, u).toFixed(1)}</span>}
+          <span className="text-muted"> ›</span>
+        </span>
+      </Link>
+      {suggestion && <SuggestionCard {...suggestion} />}
 
       <DayLog
         entries={entries}
