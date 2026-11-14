@@ -15,7 +15,7 @@ A phone-first web app where a small invited group logs what they eat in seconds 
 - 7- and 30-day history charts.
 - Works with no signal; never loses an entry.
 - Invite-only access with an admin page for Eric; every user's data private.
-- Self-serve export and account deletion; weekly encrypted off-site backup.
+- Self-serve export and account deletion; daily encrypted off-site backup.
 
 **Non-goals for the MVP** (confirmed by Eric 2026-11-11)
 - Barcode scanning (next), WHOOP (M5, after the usage gate), native Mac/iPhone apps, in-app AI text logging (replaced by the Claude connector, M4.5), micronutrients, social features (post-MVP backlog), public sign-up.
@@ -65,7 +65,7 @@ A phone-first web app where a small invited group logs what they eat in seconds 
 
 **F9 Export:** Settings → "Export all" downloads a zip of the user's own CSVs (foods, meals, entries, weigh-ins, targets, settings).
 
-**F10 Delete account:** Settings → "Delete account" → type `delete` → all the user's rows and their login are deleted immediately; they're signed out. Their data leaves the off-site backups as those age out (≤ 12 weeks); the privacy note says so.
+**F10 Delete account:** Settings → "Delete account" → type `delete` → all the user's rows and their login are deleted immediately; they're signed out. Their data leaves the off-site backups as those age out (≤ 30 days); the privacy note says so.
 
 **F11 Remove a user (admin):** Admin → user → "Remove" → type their email to confirm → same deletion as F10, and their invite is revoked [agent].
 
@@ -201,7 +201,7 @@ Derek (GitHub `dsheep3201`, collaborator with write access) reviewed the spec in
 - Release order of the v2 backlog.
 
 ## MVP scope / backlog
-**MVP:** F0–F11, per-user settings, offline queue, export, account deletion, admin page, weekly encrypted backup.
+**MVP:** F0–F11, per-user settings, offline queue, export, account deletion, admin page, daily encrypted backup.
 **Backlog (in order):** M4.5 Claude connector (+ workouts); v2 with Derek (see section above); M5 WHOOP per user (burn, eaten − burned, 14-day burn for targets); barcode scanning (Open Food Facts); social features (opt-in sharing, streaks); AI plain-text logging; native iPhone app.
 
 ## Milestones & acceptance criteria (soft deadline: MVP live **Fri 2026-11-20**)
