@@ -4,13 +4,12 @@ _Last updated: 2026-11-14._ This is the "what we built and why" in simple terms.
 The full spec is in [SPEC.md](../SPEC.md); the day-to-day state is in [STATUS.md](../STATUS.md).
 
 ## What it is
-A phone-first website for a small invite-only group (Eric, Derek and friends). You log what you
+A phone-first website for a small invite-only group of friends. You log what you
 eat in a few taps and see calories and protein against your own daily target. Your log is private:
 nobody else can see it, not even the admin.
 
 - **Live:** https://fitness-tracker-vert-three.vercel.app
 - **Launch:** Friday, Nov 20, 2026
-- **People:** Eric owns the project and the data; Derek is a collaborator on the code.
 
 ## How it's put together
 Think of it as three pieces:
@@ -21,8 +20,8 @@ Think of it as three pieces:
    the website can't show you someone else's data.
 3. **GitHub.** Holds the code and runs automatic checks on every change.
 
-Changes to the database are plain SQL files (`supabase/migrations/0001` … `0006`). Eric runs each new
-one by hand in the Supabase SQL Editor; they're all safe to run twice.
+Changes to the database are plain SQL files (`supabase/migrations/0001` … `0006`). Each new one is run
+by hand in the Supabase SQL Editor; they're all safe to run twice.
 
 ## What's been built, step by step
 
@@ -59,8 +58,8 @@ one by hand in the Supabase SQL Editor; they're all safe to run twice.
 - **Delete account:** removes your login and everything you logged, immediately.
 - **Unknown isn't zero:** if you didn't enter fat or carbs, it shows "unknown", not 0.
 - **Notes** on any entry (up to 280 characters).
-- **Daily encrypted backup** of the database to Cloudflare R2, keeping the last 30 days. Only Eric's
-  private key can open a backup. _(Built and tested, but not switched on yet; see "Still to do".)_
+- **Daily encrypted backup** of the database to Cloudflare R2, keeping the last 30 days. Only the
+  private backup key can open a backup. _(Built and tested, but not switched on yet; see "Still to do".)_
 
 ### M4.5: Claude and workouts
 - **Workouts:** type, minutes, calories burned, notes. Shown on Today for context; burned calories
@@ -78,7 +77,7 @@ one by hand in the Supabase SQL Editor; they're all safe to run twice.
   approval page checks where the app would send you afterwards. Only Claude's own address (or your own
   computer, for Claude Code) gets an Allow button; anything else sees "This app isn't allowed".
 - **Code changes go through review.** The main branch is protected: every change needs a pull request
-  and passing checks, and Derek's changes need Eric's approval.
+  passing checks and a review before it goes live.
 - **Backup secrets are locked down:** they can only be used by code that's already been approved.
 
 ### Audit fixes (pull request #5, waiting to be merged)
@@ -101,7 +100,7 @@ A full review of the project found four code problems, all now fixed and tested:
 | Claude instead of a chat box inside the app | Costs us nothing (people use their own Claude) and works from the phone. |
 | Claude's limits enforced in the database | Claude's sign-in could be used outside our app, so the rules have to live where the data is. |
 | Daily encrypted backups we control | Supabase's free plan has no downloadable backups. |
-| Hosting: Vercel now; Derek's server later as the main site, with Vercel as automatic fallback | Launch fast and free; the data stays in one Supabase project that Eric controls. |
+| Hosting: Vercel now; our own server (Terra) later as the main site, with Vercel as automatic fallback | Launch fast and free; the data stays in one Supabase project either way. |
 
 ## How we know it works
 Every change runs, automatically:
@@ -116,7 +115,7 @@ Every change runs, automatically:
 - **A secret scan** that blocks any committed password or key.
 
 ## Still to do before launch (Nov 20)
-**Eric:**
+**Setup:**
 1. Merge pull request #5 (audit fixes).
 2. Save the backup private key (`~/fitness-backup-key.txt` on the Mac mini) into a password manager,
    then delete the file.
@@ -125,15 +124,15 @@ Every change runs, automatically:
 4. Check that an uninvited Google account gets "invite-only" on the live site.
 5. Connect your own Claude and log a real meal (the first test with the real Claude app).
 
-**Derek:** say whether dereksheih.com's DNS is on Cloudflare; whether the Claude connector covers
-his "in-app AI" idea; and the order for the v2 list below.
+**Decisions:** whether the domain's DNS is on Cloudflare; whether the Claude connector covers the
+"in-app AI" idea; and the order for the v2 list below.
 
 ## After launch
 - **Usage check (Nov 20 → Dec 4):** if the group logs on at least 12 of 14 days, add WHOOP next (M5).
-- **v2 with Derek** (order to agree): meal planning, optional weight tracking, complete/partial days,
+- **v2** (order to agree): meal planning, optional weight tracking, complete/partial days,
   fuller workouts (exercises, sets, reps), start/stop workout buttons, sleep, trackers (WHOOP, Oura),
   and later characters and a shared space.
-- **Hosting move:** Derek's server becomes the main site, with Vercel as the automatic fallback.
+- **Hosting move:** our own server (Terra) becomes the main site, with Vercel as the automatic fallback.
 - **Nice to have:** open the app from the home screen with no signal.
 
 ## Risks to keep in mind
@@ -141,5 +140,4 @@ his "in-app AI" idea; and the order for the v2 list below.
 - **Free plans:** Vercel's free plan doesn't allow commercial use; Supabase pauses a project after a
   week with no use (daily logging prevents it); GitHub stops scheduled jobs (like backups) after 60
   days with no code changes.
-- **Eric is the only admin.** If he loses access to his Google account, nobody can invite people.
-  Consider making Derek an admin too.
+- **Only one admin account.** If it loses access, nobody can invite people. Add a second admin.
