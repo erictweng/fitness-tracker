@@ -1,2 +1,2 @@
-# Paste the backup PUBLIC key here (one line starting with age1...). See docs/BACKUP.md.
-# The private key never goes in this repo.
+# Backup encryption PUBLIC key (age). The private key is in Eric's password manager, never in this repo.
+age190qhvjfk5kt0sge9gr5nu9827qeaz2g78v0304tcwgh5rq3vyg8qannqgm
