@@ -56,7 +56,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const rawDate = Array.isArray(sp.date) ? sp.date[0] : sp.date;
   const date = rawDate && isIsoDate(rawDate) && rawDate <= today ? rawDate : today;
 
-  const [target, picker, weighIns, lastWeighIn, todaysTarget, sugg, { data: entries }] = await Promise.all([
+  const [target, picker, weighIns, lastWeighIn, todaysTarget, sugg, { data: entries }, { data: workouts }] = await Promise.all([
     targetFor(supabase, date),
     loadPicker(supabase),
     loadWeighIns(supabase, addDays(today, -6), today),
@@ -69,6 +69,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       .eq("log_date", date)
       .is("deleted_at", null)
       .order("logged_at", { ascending: true }),
+    supabase
+      .from("workouts")
+      .select("id, type, minutes, kcal, notes, source")
+      .eq("log_date", date)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: true }),
   ]);
 
   const rows: EntryRow[] = (entries ?? []).map((e) => ({
@@ -91,6 +97,6 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       : null;
 
   return (
-    <TodayView profile={profile} date={date} today={today} target={target} entries={rows} picker={picker} weight={weight} suggestion={suggestion} />
+    <TodayView profile={profile} date={date} today={today} target={target} entries={rows} workouts={workouts ?? []} picker={picker} weight={weight} suggestion={suggestion} />
   );
 }

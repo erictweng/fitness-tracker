@@ -297,4 +297,86 @@ do $$ begin
   end;
 end $$;
 
+-- ---------------------------------------------------------------- M4.5: Claude tokens + workouts
+-- Friend (b) logs from the app, then through a connected Claude (token with a client_id claim).
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b"}', false);
+insert into public.entries (id, log_date, meal, name, kcal, source)
+  values ('00000000-0000-0000-0000-0000000000e1', '2026-11-20', 'lunch', 'app pretending to be claude', 100, 'claude');
+insert into public.workouts (id, log_date, type, minutes, kcal)
+  values ('00000000-0000-0000-0000-0000000000f1', '2026-11-20', 'Push day', 45, 250);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","client_id":"claude-test"}', false);
+insert into public.entries (id, log_date, meal, name, kcal, source)
+  values ('00000000-0000-0000-0000-0000000000e2', '2026-11-20', 'lunch', 'eggs via claude', 300, 'app');
+insert into public.workouts (id, log_date, type, minutes)
+  values ('00000000-0000-0000-0000-0000000000f2', '2026-11-20', '5k run', 30);
+do $$
+declare n int;
+begin
+  -- Claude can edit a live entry...
+  update public.entries set kcal = 320 where id = '00000000-0000-0000-0000-0000000000e2';
+  get diagnostics n = row_count; assert n = 1, 'claude can edit its entry';
+  update public.entries set name = 'edited by claude' where id = '00000000-0000-0000-0000-0000000000e1';
+  get diagnostics n = row_count; assert n = 1, 'claude can edit an app entry';
+  -- ...but can't delete, soft-delete, or change settings/targets/foods.
+  delete from public.entries where id = '00000000-0000-0000-0000-0000000000e2';
+  get diagnostics n = row_count; assert n = 0, 'claude delete must do nothing';
+  delete from public.workouts where id = '00000000-0000-0000-0000-0000000000f1';
+  get diagnostics n = row_count; assert n = 0, 'claude workout delete must do nothing';
+  begin
+    update public.entries set deleted_at = now() where id = '00000000-0000-0000-0000-0000000000e2';
+    raise exception 'claude soft-delete should fail';
+  exception when insufficient_privilege then null;
+  end;
+  update public.profiles set goal = 'bulk' where user_id = '00000000-0000-0000-0000-00000000000b';
+  get diagnostics n = row_count; assert n = 0, 'claude must not change settings';
+  begin
+    insert into public.targets (effective_from, kcal, protein_g, source) values ('2026-11-20', 3000, 200, 'manual');
+    raise exception 'claude target insert should fail';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    insert into public.foods (name, kcal) values ('claude food', 100);
+    raise exception 'claude saved-food insert should fail';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.delete_my_account();
+    raise exception 'claude account deletion should fail';
+  exception when insufficient_privilege then
+    if sqlerrm <> 'not_from_connected_app' then raise; end if;
+  end;
+  assert (select count(*) from public.workouts) = 2, 'claude sees own workouts';
+end $$;
+-- Admin's Claude token has no admin powers.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","client_id":"claude-test"}', false);
+do $$ begin
+  assert not public.is_admin(), 'admin via claude token must not be admin';
+  assert (select count(*) from public.workouts) = 0, 'another user sees no workouts';
+  assert (select count(*) from public.entries where user_id = '00000000-0000-0000-0000-00000000000b') = 0,
+    'claude token for a sees none of b''s entries';
+end $$;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a"}', false);
+do $$ begin
+  assert public.is_admin(), 'admin in the app is still admin';
+end $$;
+-- Back in the app as b: app edits keep "via Claude"; the app can't fake it on edit either.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b"}', false);
+update public.entries set kcal = 330 where id = '00000000-0000-0000-0000-0000000000e2';
+update public.workouts set source = 'claude' where id = '00000000-0000-0000-0000-0000000000f1';
+update public.entries set deleted_at = now() where id = '00000000-0000-0000-0000-0000000000e2';
+reset role;
+do $$ begin
+  assert (select source from public.entries where id = '00000000-0000-0000-0000-0000000000e1') = 'claude',
+    'edited by claude → via claude';
+  assert (select source || '/' || oauth_client_id from public.entries where id = '00000000-0000-0000-0000-0000000000e2') = 'claude/claude-test',
+    'claude insert stamped with client id, kept after app edit';
+  assert (select deleted_at is not null from public.entries where id = '00000000-0000-0000-0000-0000000000e2'), 'app can still delete';
+  assert (select source from public.workouts where id = '00000000-0000-0000-0000-0000000000f1') = 'app', 'app cannot fake claude';
+  assert (select source from public.workouts where id = '00000000-0000-0000-0000-0000000000f2') = 'claude', 'claude workout stamped';
+end $$;
+
 \echo 'fitness-tracker migration checks passed'

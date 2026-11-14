@@ -6,6 +6,7 @@ import { DayLog, type EntryRow } from "./day-log";
 import type { Picker } from "./add-sheet";
 import { SuggestionCard } from "./suggestion-card";
 import { toDisplayWeight } from "@/lib/domain/units";
+import { WorkoutsCard, type WorkoutRow } from "./workouts-card";
 
 type Props = {
   profile: Profile;
@@ -13,6 +14,7 @@ type Props = {
   today: string;
   target: Target | null;
   entries: EntryRow[];
+  workouts: WorkoutRow[];
   picker: Picker;
   weight: { latestKg: number | null; avgKg: number | null };
   suggestion: { kcal: number; protein: number; fromKcal: number; fromProtein: number } | null;
@@ -25,7 +27,7 @@ function fmtDate(iso: string, today: string) {
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-export function TodayView({ profile, date, today, target, entries, picker, weight, suggestion }: Props) {
+export function TodayView({ profile, date, today, target, entries, workouts, picker, weight, suggestion }: Props) {
   const u = profile.weight_unit;
   const t = totals(entries);
   const kcalLeft = target ? target.kcal - t.kcal : null;
@@ -97,6 +99,7 @@ export function TodayView({ profile, date, today, target, entries, picker, weigh
         required={{ protein: profile.require_protein, fat: profile.require_fat, carbs: profile.require_carbs }}
         picker={picker}
       />
+      <WorkoutsCard key={date} workouts={workouts} date={date} />
     </main>
   );
 }

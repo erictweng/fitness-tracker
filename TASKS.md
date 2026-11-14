@@ -44,3 +44,13 @@
 - [ ] Eric — backup setup: age key, Cloudflare R2 bucket + token, GitHub `backup` environment secrets (docs/BACKUP.md), then run the workflow once
 - [ ] Eric — protect `main` (require a PR review) now that a collaborator has write access
 - [ ] Eric + agent — restore drill from the first real backup (scripts/restore-check.sh)
+
+## M4.5 Claude connector + workouts (branch `m4.5-claude-workouts`)
+- [x] agent — Migration 0006: `workouts` table; Claude-token provenance (`source = 'claude'` + client id, unforgeable both ways); Claude tokens can't delete, change settings/targets/saved foods, delete the account or act as admin
+- [x] agent — `/api/mcp` remote MCP server (stateless Streamable HTTP) + protected-resource metadata; tools `get_day`, `log_food`, `edit_entry`, `log_weight`, `log_workout`, `list_recent_foods`
+- [x] agent — Consent page `/oauth/consent` (sign-in returns to it), Settings → Claude (URL to paste, connected apps, Disconnect)
+- [x] agent — Workouts card on Today (add / edit / delete + Undo); burned calories shown for context only; workouts in export + backups
+- [x] agent — Tests: DB checks for Claude-token limits; e2e of the full OAuth flow, tools, isolation, retries, Disconnect, app workouts
+- [ ] Eric — run `supabase/migrations/0006_m45_claude_workouts.sql` in the hosted SQL Editor
+- [ ] Eric — Supabase → Authentication → OAuth Server: enable, path `/oauth/consent`, allow dynamic client registration (docs/CLAUDE-CONNECTOR.md)
+- [ ] Eric — merge the M4.5 PR, then connect Claude and log a real meal

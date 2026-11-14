@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/supabase/config";
 import { mapCallbackError } from "@/lib/auth-errors";
+import { safeNext } from "@/lib/next-path";
 
 export async function GET(request: NextRequest) {
   const origin = siteUrl(request);
@@ -22,5 +23,5 @@ export async function GET(request: NextRequest) {
     console.error("code exchange failed", error.code, error.status);
     return NextResponse.redirect(`${origin}/?auth_error=sign_in_failed`, 303);
   }
-  return NextResponse.redirect(`${origin}/`, 303);
+  return NextResponse.redirect(`${origin}${safeNext(params.get("next")) ?? "/"}`, 303);
 }

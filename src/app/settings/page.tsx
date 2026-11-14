@@ -6,6 +6,7 @@ import { targetFor, todayFor } from "@/lib/profile";
 import { suggestionFor } from "@/lib/suggest";
 import { SettingsForm, TargetsForm } from "./settings-forms";
 import { DeleteAccountForm } from "../account/danger-forms";
+import { ConnectedApps } from "./connected-apps";
 
 export default async function SettingsPage() {
   await connection();
@@ -31,6 +32,8 @@ export default async function SettingsPage() {
         <h2 className="font-semibold">Goal & preferences</h2>
         <SettingsForm profile={profile} />
       </section>
+
+      <ConnectedApps supabase={supabase} />
 
       <section className="card flex flex-col gap-3" data-testid="your-data">
         <h2 className="font-semibold">Your data</h2>
