@@ -134,14 +134,14 @@ A phone-first web app where a small invited group logs what they eat in seconds 
 - **Supabase (free):** Postgres + Google auth + RLS. Free-plan limits (500 MB database, 50k monthly active users) are far above < 20 users. No downloadable backups on free → our own backup below. Pauses after ~1 week idle.
 - **Vercel (Hobby):** hosting, preview deploy per branch.
 - **Google OAuth:** client created by Eric in Google Cloud console, configured in Supabase.
-- **Backups:** GitHub Actions, every Sunday 3 AM PT: `pg_dump` → encrypted with `age` (public key in the repo; private key only with Eric, in his password manager) → uploaded to a private **Cloudflare R2** bucket (free tier 10 GB); keep the last 12. DB URL and R2 keys are GitHub Actions secrets. The workflow prints only file size and row counts (the repo is public, so its logs are public).
+- **Backups:** GitHub Actions, daily at 3 AM PT (was weekly; changed 2026-11-13, see Hosting): `pg_dump` → encrypted with `age` (public key in the repo; private key only with Eric, in his password manager) → uploaded to a private **Cloudflare R2** bucket (free tier 10 GB); keep the last 30 (≈ 30 days). DB URL and R2 keys are GitHub Actions secrets. The workflow prints only file size and row counts (the repo is public, so its logs are public).
 - **WHOOP (M5, later):** each user connects their own WHOOP via the official v2 OAuth API; details in `docs/SPEC-v0-research.md`.
 
 ## Non-functional requirements
 - Saved-food log in ≤ 10 s, ≤ 3 taps.
 - Today interactive < 1.5 s on phone over LTE after first load.
 - Monthly cost: $0 (Supabase free, Vercel Hobby, R2 free tier, GitHub Actions free for public repos).
-- Privacy: several people's health data. RLS on every table; admin can't read logs; no analytics or third-party trackers; short privacy note in Settings (what's stored, who can see it, how to delete, backups age out in 12 weeks).
+- Privacy: several people's health data. RLS on every table; admin can't read logs; no analytics or third-party trackers; short privacy note in Settings (what's stored, who can see it, how to delete, backups age out in 30 days).
 - **Public repo** (Eric's call): `.env*` gitignored; gitleaks pre-commit hook; GitHub push protection on; only the Supabase anon key in client code; no real user data in seeds, tests, fixtures or Action logs.
 - Errors: Vercel logs only.
 
@@ -167,9 +167,42 @@ Each user can connect their own Claude (Claude app on phone/web as a custom conn
 - **Cost:** $0 for the app (Claude does the estimating on the user's own Claude plan); MCP sign-ins count toward Supabase monthly active users (same user = 1).
 - **Acceptance:** Claude Code connects through the OAuth flow; "I had 2 eggs and toast" creates one entry marked via Claude with sensible numbers; `get_day` matches the Today screen; a second user's token sees none of the first user's data; retrying the same tool call creates no duplicate; revoking the app in Settings makes the next call fail.
 
+## v2 with Derek (agreed 2026-11-13)
+Derek (GitHub `dsheep3201`, collaborator with write access) reviewed the spec in his "Fitness App Requirements and Discussion v4" Google Doc. Outcome: one app, built on this repo; his character / shared-space idea is the long-term niche, layered on top after the MVP. Eric approved the requests below. **Launch scope for Fri 11-20 does not change.**
+
+### Small items folded into M4 / M4.5 (agreed by both)
+- **Unknown ≠ zero:** a blank fat or carbs value is stored as null and shown as "unknown", never counted as 0. Today shows the known subtotal plus how many entries are missing that macro. (kcal + protein stay required.)
+- **Entry notes:** optional notes on entries (portion notes, assumptions, nutrition source URL), up to 280 chars.
+- **Claude can correct entries:** add an `edit_entry` tool to the connector (same RLS, still no delete tool). Meal label (e.g. "breakfast") is accepted on `log_food`.
+- **Single target per macro stays** — Derek's low/high ranges are not needed for v1.
+- **Saved food vs history (answer to Derek):** editing a saved food never changes past days (entries snapshot nutrition); editing a past entry directly changes that entry.
+
+### v2 backlog (after launch; order to be agreed with Derek)
+1. **Meal planning (optional):** plan food for the day, then mark it eaten or skipped. Planned food is stored separately and never counts toward eaten totals or intake averages; Today can show an "if plans are eaten" projection. Derek hasn't decided whether it should block a release.
+2. **Optional weight tracking:** users can turn weigh-ins off. Targets then fall back to the onboarding weight (or a weight entered in Settings). Weigh-in tip on the Weight screen: same time of day, minimal clothing, no shoes.
+3. **Complete / partial days:** a past day counts as "logged" when breakfast, lunch and dinner are all present, or when the user marks it complete. Used by history averages and the usage gate. Diet averages exclude today and planned food. Exact Today UI (calorie number + progress bar) to be designed with Derek.
+4. **Workouts v2:** imports from trackers where supported; manual logging from an exercise bank, with user-added exercises; optional lift detail (exercise, sets, reps, load — barbell includes the bar, dumbbells per hand, machines use the stack value; missing values stay blank). AI lookup of a missing exercise is an idea, not a commitment. A workout must never count twice across sources (source + external id matching).
+5. **Start / stop workout buttons** (like Strava). Investigate automatic detection / live status from Apple Watch, WHOOP and Oura — only what each provider's API actually exposes; a delayed import is never shown as "working out now".
+6. **Sleep and wake times:** imported from a tracker or entered by hand. Kept separate from the day-end setting (how they relate is still open).
+7. **Health integrations as a major feature:** WHOOP (M5, per-user OAuth) first; Oura via its web API; **Apple Health / Apple Watch need a native iPhone app** (a website can't read HealthKit) — so that one waits for the native app. Manual entry stays available for everything. Settings the user picks are kept apart from measurements a tracker supplies.
+8. **Characters + shared space (Derek's niche):** opt-in only; friends see a character or chosen summary, never raw meals, weights or wearable data. Sharing controls are agreed before any social build. Art direction (3D vs HD-2D pixel sprites) to be chosen together.
+
+### Hosting (agreed 2026-11-13)
+- **Database + auth:** one Supabase project, managed by Eric. Both app hosts use it, so there's nothing to sync and sessions survive a switch.
+- **App hosts:** Derek's server **Terra** + `fitness.dereksheih.com` become the primary; **Vercel stays as an automatic fallback**. Same commit deploys to both (avoids version mismatch).
+- **Secrets:** Terra gets only the runtime env the app needs. The Supabase admin/service key, `age` private key and R2 keys stay with Eric.
+- **Corruption** is handled by backups, not by the second host: backups move from weekly to **daily**, plus an encrypted copy on Terra for Derek's own routine, plus a restore drill.
+- **Privacy wording:** whoever runs an app server can technically see requests passing through, so the privacy note says "Eric and Derek run this app; we don't look at your logs."
+- **Order:** (1) point `fitness.dereksheih.com` at Vercel, launch 11-20; (2) Derek's PR: Dockerfile, GitHub Actions deploy to Terra, Cloudflare Tunnel (no open home ports); (3) Cloudflare health check / Worker routes to Terra with Vercel fallback, tested by switching Terra off; (4) make Terra primary.
+- **Open:** is `dereksheih.com` DNS on Cloudflare? Who watches Terra's uptime? Monthly budget ($0 vs ~$5 for Cloudflare load balancing).
+
+### Open with Derek
+- **"In-app AI" logging:** Derek wants to tell an AI "log this as breakfast". The spec covers this through the Claude connector (M4.5). Open: is that enough, or does he want a chat box inside the app (which would need an API key and a per-message cost)?
+- Release order of the v2 backlog.
+
 ## MVP scope / backlog
 **MVP:** F0–F11, per-user settings, offline queue, export, account deletion, admin page, weekly encrypted backup.
-**Backlog (in order):** M4.5 Claude connector (+ workouts); M5 WHOOP per user (burn, eaten − burned, 14-day burn for targets); barcode scanning (Open Food Facts); social features (opt-in sharing, streaks); AI plain-text logging; native iPhone app.
+**Backlog (in order):** M4.5 Claude connector (+ workouts); v2 with Derek (see section above); M5 WHOOP per user (burn, eaten − burned, 14-day burn for targets); barcode scanning (Open Food Facts); social features (opt-in sharing, streaks); AI plain-text logging; native iPhone app.
 
 ## Milestones & acceptance criteria (soft deadline: MVP live **Fri 2026-11-20**)
 - **M0 Skeleton + access (days 1–2):** Next.js + Supabase + Google sign-in on Vercel; invites, admin page, RLS on all tables; public repo with gitleaks + push protection. *Accept:* invited test account gets in; uninvited account gets the invite-only message and no `profiles` row; an API call as admin for another user's `entries` returns 0 rows (automated test).
@@ -209,7 +242,7 @@ Each user can connect their own Claude (Claude app on phone/web as a custom conn
 - Saved foods private per user — Eric
 - Logs fully private; social after MVP — Eric
 - No data on the Mac mini — Eric
-- Weekly encrypted backup via GitHub Actions to Cloudflare R2 — Eric
+- Weekly encrypted backup via GitHub Actions to Cloudflare R2 — Eric (now daily, 2026-11-13)
 - Users delete their own account — Eric
 - Admin sees invites and user list only — Eric
 - MVP by Fri 2026-11-20 — Eric
@@ -229,6 +262,10 @@ Each user can connect their own Claude (Claude app on phone/web as a custom conn
 - Calorie floor at BMR — Decided by agent
 - Last write wins — Decided by agent
 - Weekly suggestions, never silent — Decided by agent
+- Derek joins as collaborator; one app built on this repo; characters/shared space later — Eric + Derek
+- v2 backlog with Derek (meal planning, optional weight, complete days, workouts v2, start/stop, sleep, integrations, characters) — Eric
+- Unknown fat/carbs ≠ 0, entry notes, Claude `edit_entry` folded into M4/M4.5 — Eric + Derek
+- Hosting: Terra primary + Vercel fallback, one Supabase managed by Eric, daily backups — Eric
 - Suggestion card shows from Monday until acted on or the week ends; at most one target change per week (not only on Monday itself, so a missed Monday isn't a missed week) — Decided by agent
 
 ## Open questions / parked
