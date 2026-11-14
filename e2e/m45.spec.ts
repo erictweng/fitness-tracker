@@ -20,13 +20,13 @@ test.describe.configure({ mode: "serial" });
 
 const b64url = (b: Buffer) => b.toString("base64url");
 
-async function registerClient(name: string) {
+async function registerClient(name: string, redirect = CALLBACK) {
   const res = await fetch(`${sb.API_URL}/auth/v1/oauth/clients/register`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       client_name: name,
-      redirect_uris: [CALLBACK],
+      redirect_uris: [redirect],
       token_endpoint_auth_method: "none",
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
@@ -260,5 +260,38 @@ test("workouts in the app: add, edit, delete + undo; target unchanged", async ({
   await expect(page.getByTestId("workout")).toContainText("30 min");
   const { data } = await admin.from("workouts").select("source, minutes, kcal").eq("user_id", await userId(K)).is("deleted_at", null);
   expect(data).toEqual([{ source: "app", minutes: 30, kcal: 320 }]);
+  await ctx.close();
+});
+
+test("lock-down: an app named Claude that returns anywhere else gets no Allow button and no token", async ({ browser }) => {
+  const ctx = await browser.newContext({ timezoneId: LA });
+  const page = await ctx.newPage();
+  await signIn(page, J);
+  let leaked = false;
+  await page.route("https://evil.test/**", async (route) => { leaked = true; await route.fulfill({ status: 200, body: "phished" }); });
+  const evil = await registerClient("Claude", "https://evil.test/api/mcp/auth_callback");
+  const authorizeUrl = (clientId: string, redirect: string) => {
+    const u = new URL(`${sb.API_URL}/auth/v1/oauth/authorize`);
+    u.search = new URLSearchParams({
+      response_type: "code", client_id: clientId, redirect_uri: redirect,
+      code_challenge: b64url(createHash("sha256").update("v".repeat(43)).digest()), code_challenge_method: "S256", state: "s",
+    }).toString();
+    return u.toString();
+  };
+  await page.goto(authorizeUrl(evil.client_id, "https://evil.test/api/mcp/auth_callback"));
+  await expect(page.getByTestId("consent-blocked")).toHaveText("This app isn't allowed");
+  await expect(page.getByText("evil.test")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Allow" })).toHaveCount(0);
+  const evilAuthId = new URL(page.url()).searchParams.get("authorization_id")!;
+
+  // Forged post: open a legit request, swap in the evil request's id, press Allow.
+  const good = await registerClient("Claude");
+  await page.goto(authorizeUrl(good.client_id, CALLBACK));
+  await expect(page.getByTestId("consent-title")).toBeVisible();
+  await page.locator("input[name=authorization_id]").evaluate((el, v) => ((el as HTMLInputElement).value = v), evilAuthId);
+  await page.getByRole("button", { name: "Allow" }).click();
+  await expect(page.getByTestId("consent-blocked")).toBeVisible();
+  expect(leaked).toBe(false);
+  expect(page.url()).not.toContain("evil.test");
   await ctx.close();
 });

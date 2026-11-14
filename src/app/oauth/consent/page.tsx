@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { decide } from "./actions";
+import { isAllowedRedirect } from "@/lib/oauth-redirects";
 
 const CAN = [
   "Log food you tell it about (it estimates the numbers)",
@@ -42,6 +44,16 @@ export default async function ConsentPage({ searchParams }: PageProps<"/oauth/co
   }
 
   const { data, error } = await supabase.auth.oauth.getAuthorizationDetails(id);
+  if (sp.blocked === "1" && (error || !data || !("authorization_id" in data))) {
+    // A blocked request is denied server-side, so it no longer has details to show.
+    return shell(
+      <>
+        <h1 className="text-2xl font-bold" data-testid="consent-blocked">This app isn&apos;t allowed</h1>
+        <p className="card text-sm">Only Claude can connect to Fitness Tracker. Nothing was shared.</p>
+        <Link className="btn btn-ghost" href="/">Back to Fitness Tracker</Link>
+      </>,
+    );
+  }
   if (error || !data) {
     return shell(
       <p className="card text-warn" data-testid="consent-error">
@@ -50,6 +62,22 @@ export default async function ConsentPage({ searchParams }: PageProps<"/oauth/co
     );
   }
   if (!("authorization_id" in data)) redirect(data.redirect_url);
+
+  // Only Claude (or a tool on your own computer) may connect. Never offer Allow to anything else,
+  // and never send the browser to an unknown address (not even to report the refusal).
+  if (sp.blocked === "1" || !isAllowedRedirect(data.redirect_uri)) {
+    return shell(
+      <>
+        <h1 className="text-2xl font-bold" data-testid="consent-blocked">This app isn&apos;t allowed</h1>
+        <p className="card text-sm">
+          &ldquo;{data.client.name || "An app"}&rdquo; wants to send you to <span className="font-semibold">{host(data.redirect_uri)}</span>,
+          which isn&apos;t Claude. Only Claude can connect to Fitness Tracker. If you didn&apos;t start this from Claude,
+          someone may be trying to get access to your log: close this page.
+        </p>
+        <Link className="btn btn-ghost" href="/">Back to Fitness Tracker</Link>
+      </>,
+    );
+  }
 
   return shell(
     <>
