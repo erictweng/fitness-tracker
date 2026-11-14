@@ -33,4 +33,14 @@
 - [x] agent — Today weight line; weekly suggestion card (from Monday, once a week, Accept/Dismiss); targets use 7-day average weight
 - [x] agent — Unit tests (average window, fallback, Monday maths, suggestion rules) + e2e (lb & kg users, accept, dismiss, BMR floor)
 - [ ] Eric — run `supabase/migrations/0004_m3_weight.sql` in the hosted Supabase SQL Editor
-## M4 History, offline, export, delete, backup — not started
+## M4 History, offline, export, delete, backup
+- [x] agent — Migration 0005: entry notes (≤ 280), `delete_my_account`, `admin_remove_user` (revokes invite; can't remove self; last admin can't self-delete)
+- [x] agent — History screen: 7/30-day toggle, calories + protein vs target bars, weight + 7-day average; averages skip missed days and today
+- [x] agent — Offline logging: new entries queue on the phone, sync on reconnect, no duplicates; edits/deletes refused offline with a message
+- [x] agent — Export all (zip of CSVs, only your rows), Delete account (type `delete`), admin Remove user (type their email), privacy note
+- [x] agent — Unknown fat/carbs ≠ 0 on Today; notes field on entries; PWA manifest + icon
+- [x] agent — Daily encrypted backup workflow + restore check; CI round trip (backup → wrong key fails → restore → counts match)
+- [ ] Eric — run `supabase/migrations/0005_m4_account.sql` in the hosted Supabase SQL Editor (after 0003, 0004)
+- [ ] Eric — backup setup: age key, Cloudflare R2 bucket + token, GitHub `backup` environment secrets (docs/BACKUP.md), then run the workflow once
+- [ ] Eric — protect `main` (require a PR review) now that a collaborator has write access
+- [ ] Eric + agent — restore drill from the first real backup (scripts/restore-check.sh)

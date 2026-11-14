@@ -11,7 +11,18 @@ describe("totals", () => {
       { kcal: 300.4, protein_g: 25.5, fat_g: null, carbs_g: null },
       { kcal: 999, protein_g: 99, fat_g: 9, carbs_g: 9, deleted_at: "2026-11-12T00:00:00Z" },
     ]);
-    expect(t).toEqual({ kcal: 950, protein: 73.5, fat: 20, carbs: 60, count: 2 });
+    expect(t).toEqual({ kcal: 950, protein: 73.5, fat: 20, carbs: 60, count: 2, missingFat: 1, missingCarbs: 1 });
+  });
+});
+
+describe("parseEntry notes", () => {
+  it("keeps trimmed notes, empty → null, rejects > 280 chars", () => {
+    const ok = parseEntry(form({ kcal: "100", protein_g: "5", notes: "  half portion  " }), req);
+    expect(ok.ok && ok.value.notes).toBe("half portion");
+    const empty = parseEntry(form({ kcal: "100", protein_g: "5", notes: "   " }), req);
+    expect(empty.ok && empty.value.notes).toBeNull();
+    const long = parseEntry(form({ kcal: "100", protein_g: "5", notes: "x".repeat(281) }), req);
+    expect(long.ok).toBe(false);
   });
 });
 

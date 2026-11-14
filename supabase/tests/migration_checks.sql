@@ -221,4 +221,80 @@ do $$ begin
 end $$;
 reset role;
 
+-- ---------------- M4: notes, self-delete, admin removal
+insert into public.invites (email) values ('leaver@example.com'), ('removed@example.com');
+insert into auth.users (id, email) values
+  ('00000000-0000-0000-0000-0000000000c1', 'leaver@example.com'),
+  ('00000000-0000-0000-0000-0000000000d1', 'removed@example.com');
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000c1', false);
+do $$
+declare f uuid; m uuid;
+begin
+  insert into public.foods (name, kcal) values ('Oats', 150) returning id into f;
+  insert into public.meals (name) values ('Breakfast') returning id into m;
+  insert into public.meal_items (meal_id, food_id) values (m, f);
+  insert into public.entries (id, log_date, meal, food_id, kcal, notes)
+    values (gen_random_uuid(), current_date, 'breakfast', f, 150, 'half a cup, guessed');
+  insert into public.weigh_ins (id, log_date, weight_kg) values (gen_random_uuid(), current_date, 80);
+  insert into public.targets (effective_from, kcal, protein_g, source) values (current_date, 2000, 150, 'manual');
+  begin
+    insert into public.entries (id, log_date, meal, kcal, notes)
+      values (gen_random_uuid(), current_date, 'lunch', 1, repeat('x', 281));
+    raise exception 'notes over 280 chars should fail';
+  exception when check_violation then null; end;
+  -- A friend can't remove anyone.
+  begin
+    perform public.admin_remove_user('removed@example.com');
+    raise exception 'non-admin removal should fail';
+  exception when insufficient_privilege then null; end;
+  perform public.delete_my_account();
+end $$;
+reset role;
+do $$ begin
+  assert not exists (select 1 from auth.users where id = '00000000-0000-0000-0000-0000000000c1'), 'login deleted';
+  assert (select count(*) from public.profiles where user_id = '00000000-0000-0000-0000-0000000000c1') = 0, 'profile deleted';
+  assert (select count(*) from public.foods where user_id = '00000000-0000-0000-0000-0000000000c1') = 0, 'foods deleted';
+  assert (select count(*) from public.meals where user_id = '00000000-0000-0000-0000-0000000000c1') = 0, 'meals deleted';
+  assert (select count(*) from public.meal_items where user_id = '00000000-0000-0000-0000-0000000000c1') = 0, 'meal items deleted';
+  assert (select count(*) from public.entries where user_id = '00000000-0000-0000-0000-0000000000c1') = 0, 'entries deleted';
+  assert (select count(*) from public.weigh_ins where user_id = '00000000-0000-0000-0000-0000000000c1') = 0, 'weigh-ins deleted';
+  assert (select count(*) from public.targets where user_id = '00000000-0000-0000-0000-0000000000c1') = 0, 'targets deleted';
+  assert exists (select 1 from auth.users where id = '00000000-0000-0000-0000-00000000000b'), 'other users untouched';
+end $$;
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+do $$ begin
+  begin
+    perform public.admin_remove_user('admin@example.com');
+    raise exception 'admin removing self should fail';
+  exception when raise_exception then
+    if sqlerrm <> 'cannot_remove_self' then raise; end if;
+  end;
+  begin
+    perform public.delete_my_account();
+    raise exception 'last admin self-delete should fail';
+  exception when raise_exception then
+    if sqlerrm <> 'last_admin' then raise; end if;
+  end;
+  perform public.admin_remove_user('  Removed@Example.com ');
+end $$;
+reset role;
+do $$ begin
+  assert not exists (select 1 from auth.users where id = '00000000-0000-0000-0000-0000000000d1'), 'removed login deleted';
+  assert (select revoked_at is not null from public.invites where email = 'removed@example.com'), 'removed invite revoked';
+  assert exists (select 1 from auth.users where id = '00000000-0000-0000-0000-00000000000a'), 'admin still there';
+end $$;
+-- Signing back in after removal is blocked by the invite gate.
+do $$ begin
+  begin
+    insert into auth.users (id, email) values (gen_random_uuid(), 'removed@example.com');
+    raise exception 'removed user sign-up should fail';
+  exception when raise_exception then
+    if sqlerrm <> 'not_invited' then raise; end if;
+  end;
+end $$;
+
 \echo 'fitness-tracker migration checks passed'

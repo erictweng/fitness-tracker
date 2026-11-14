@@ -107,7 +107,7 @@ A phone-first web app where a small invited group logs what they eat in seconds 
 - **Loading:** skeletons; **errors:** inline banner with Retry; never a blank screen.
 
 ## Edge cases & handling
-- **No signal** → entry saved on the phone (IndexedDB) with a pending dot; syncs when back online; upsert by client UUID, so retries never duplicate.
+- **No signal** → new entries (quick add, saved food, saved meal) are saved on the phone (localStorage, per user) and listed under "Waiting to sync" with a dot; they sync when the phone is back online (and every 30 s); upsert by client UUID, so retries never duplicate. Edits and deletes need a connection and say so. Limitation: the app has to be open already — opening it from scratch with no signal doesn't load (no offline page cache yet).
 - **Double-tap Save** → same UUID → one entry.
 - **Same entry edited on two devices** → last write wins by `updated_at` [agent].
 - **Session expires while offline** → queue kept; syncs after sign-in.
@@ -266,6 +266,9 @@ Derek (GitHub `dsheep3201`, collaborator with write access) reviewed the spec in
 - v2 backlog with Derek (meal planning, optional weight, complete days, workouts v2, start/stop, sleep, integrations, characters) — Eric
 - Unknown fat/carbs ≠ 0, entry notes, Claude `edit_entry` folded into M4/M4.5 — Eric + Derek
 - Hosting: Terra primary + Vercel fallback, one Supabase managed by Eric, daily backups — Eric
+- Offline queue in localStorage instead of IndexedDB (small queue, simpler, same behaviour); only new entries are queued — Decided by agent
+- Unknown fat/carbs shown as "30g + 2 unknown" / "not entered", never as 0 — Decided by agent
+- Backups: one consistent pg_dump of app + auth tables, age-encrypted, 30 kept; secrets in a `backup` GitHub environment limited to `main` — Decided by agent
 - Suggestion card shows from Monday until acted on or the week ends; at most one target change per week (not only on Monday itself, so a missed Monday isn't a missed week) — Decided by agent
 
 ## Open questions / parked

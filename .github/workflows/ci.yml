@@ -46,6 +46,16 @@ jobs:
       - run: scripts/db-check.sh | tee db-check.log
       - name: Confirm the assertions actually ran
         run: grep -q "fitness-tracker migration checks passed" db-check.log
+      - name: Install pg_dump 17 and age
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common age > /dev/null
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y > /dev/null
+          sudo apt-get install -y -qq postgresql-client-17 > /dev/null
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - name: Backup → encrypt → restore round trip (throwaway key, test data)
+        run: scripts/backup-roundtrip.sh | tee backup.log
+      - run: grep -q "restore check passed" backup.log
 
   e2e:
     name: Browser tests (local Supabase + Playwright)

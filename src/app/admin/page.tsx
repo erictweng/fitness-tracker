@@ -5,6 +5,7 @@ import { getMe } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { InviteForm } from "./invite-form";
 import { revokeAction } from "./actions";
+import { RemoveUserForm } from "../account/danger-forms";
 
 type UserRow = { email: string; is_admin: boolean; joined_at: string; last_active_at: string | null };
 type InviteRow = { email: string; invited_at: string };
@@ -65,6 +66,7 @@ export default async function AdminPage() {
               <span className="text-xs text-muted">
                 joined {fmt(u.joined_at)} · last active {fmt(u.last_active_at)}
               </span>
+              {u.email !== me.email && <RemoveUserForm email={u.email} />}
             </li>
           ))}
         </ul>

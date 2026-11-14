@@ -7,12 +7,12 @@ const sb = localSupabaseEnv();
 export const admin = createClient(sb.API_URL, sb.SECRET_KEY, { auth: { persistSession: false } });
 
 /** Fresh invited test user (fake .test domain, local stack only). */
-export async function resetUser(email: string, opts: { invite: boolean }) {
+export async function resetUser(email: string, opts: { invite: boolean; admin?: boolean }) {
   const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
   for (const u of data.users.filter((u) => u.email === email)) await admin.auth.admin.deleteUser(u.id);
   await admin.from("invites").delete().eq("email", email);
   if (opts.invite) {
-    const { error } = await admin.from("invites").insert({ email });
+    const { error } = await admin.from("invites").insert({ email, is_admin: opts.admin ?? false });
     if (error) throw error;
   }
   return admin.auth.admin.createUser({ email, password: PASSWORD, email_confirm: true });
@@ -59,4 +59,11 @@ export async function onboard(page: Page, o: { goal?: "cut" | "maintain" | "bulk
   if (o.goal) await page.getByLabel("Goal").selectOption(o.goal);
   await page.getByRole("button", { name: "Start logging" }).click();
   await page.waitForURL((u) => u.pathname === "/");
+}
+
+export async function userId(email: string): Promise<string> {
+  const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const u = data.users.find((x) => x.email === email);
+  if (!u) throw new Error(`no user ${email}`);
+  return u.id;
 }

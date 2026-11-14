@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { MEALS, type Meal } from "@/lib/domain/day";
 import { foodSummary, scaleFood, searchFoods, type Food } from "@/lib/domain/foods";
-import { logFood, logMeal } from "../foods/actions";
+import { submitOrQueue } from "@/lib/offline-queue";
 
 export type Picker = {
   foods: Food[];
@@ -15,6 +15,7 @@ export type Picker = {
 const MEAL_LABEL: Record<Meal, string> = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snacks" };
 
 type Props = {
+  userId: string;
   picker: Picker;
   defaultMeal: Meal;
   logDate: () => string;
@@ -24,7 +25,7 @@ type Props = {
 
 type View = { kind: "pick" } | { kind: "food"; food: Food } | { kind: "meal"; meal: Picker["meals"][number] };
 
-export function AddSheet({ picker, defaultMeal, logDate, onClose, onQuickAdd }: Props) {
+export function AddSheet({ userId, picker, defaultMeal, logDate, onClose, onQuickAdd }: Props) {
   const [view, setView] = useState<View>({ kind: "pick" });
   const [q, setQ] = useState("");
   const results = useMemo(() => searchFoods(picker.foods, q), [picker.foods, q]);
@@ -89,8 +90,8 @@ export function AddSheet({ picker, defaultMeal, logDate, onClose, onQuickAdd }: 
           </>
         )}
 
-        {view.kind === "food" && <FoodAmount food={view.food} defaultMeal={defaultMeal} logDate={logDate} onDone={onClose} />}
-        {view.kind === "meal" && <MealConfirm meal={view.meal} defaultMeal={defaultMeal} logDate={logDate} onDone={onClose} />}
+        {view.kind === "food" && <FoodAmount userId={userId} food={view.food} defaultMeal={defaultMeal} logDate={logDate} onDone={onClose} />}
+        {view.kind === "meal" && <MealConfirm userId={userId} meal={view.meal} defaultMeal={defaultMeal} logDate={logDate} onDone={onClose} />}
       </div>
     </div>
   );
@@ -127,7 +128,7 @@ function MealSelect({ value, onChange }: { value: Meal; onChange: (m: Meal) => v
   );
 }
 
-function FoodAmount({ food, defaultMeal, logDate, onDone }: { food: Food; defaultMeal: Meal; logDate: () => string; onDone: () => void }) {
+function FoodAmount({ userId, food, defaultMeal, logDate, onDone }: { userId: string; food: Food; defaultMeal: Meal; logDate: () => string; onDone: () => void }) {
   const [unit, setUnit] = useState<"servings" | "grams">("servings");
   const [qty, setQty] = useState("1");
   const [meal, setMeal] = useState<Meal>(defaultMeal);
@@ -147,9 +148,9 @@ function FoodAmount({ food, defaultMeal, logDate, onDone }: { food: Food; defaul
     fd.set("meal", meal);
     fd.set("log_date", logDate());
     start(async () => {
-      const r = await logFood(fd);
-      if (r.ok) onDone();
-      else setErr(r.message ?? Object.values(r.errors ?? {})[0] ?? "Couldn't log it.");
+      const out = await submitOrQueue(userId, "food", fd, { name: food.name, kcal: preview.kcal, meal, log_date: String(fd.get("log_date")) });
+      if (out.status !== "error") onDone();
+      else setErr(out.result.message ?? Object.values(out.result.errors ?? {})[0] ?? "Couldn't log it.");
     });
   }
 
@@ -193,7 +194,7 @@ function FoodAmount({ food, defaultMeal, logDate, onDone }: { food: Food; defaul
   );
 }
 
-function MealConfirm({ meal, defaultMeal, logDate, onDone }: { meal: Picker["meals"][number]; defaultMeal: Meal; logDate: () => string; onDone: () => void }) {
+function MealConfirm({ userId, meal, defaultMeal, logDate, onDone }: { userId: string; meal: Picker["meals"][number]; defaultMeal: Meal; logDate: () => string; onDone: () => void }) {
   const [slot, setSlot] = useState<Meal>(defaultMeal);
   const [err, setErr] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -210,9 +211,9 @@ function MealConfirm({ meal, defaultMeal, logDate, onDone }: { meal: Picker["mea
     fd.set("meal", slot);
     fd.set("log_date", logDate());
     start(async () => {
-      const r = await logMeal(fd);
-      if (r.ok) onDone();
-      else setErr(r.message ?? "Couldn't log the meal.");
+      const out = await submitOrQueue(userId, "meal", fd, { name: meal.name, kcal, meal: slot, log_date: String(fd.get("log_date")) });
+      if (out.status !== "error") onDone();
+      else setErr(out.result.message ?? "Couldn't log the meal.");
     });
   }
 

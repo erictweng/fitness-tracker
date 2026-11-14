@@ -1,0 +1,2 @@
+# Paste the backup PUBLIC key here (one line starting with age1...). See docs/BACKUP.md.
+# The private key never goes in this repo.

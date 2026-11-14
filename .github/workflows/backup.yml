@@ -1,0 +1,72 @@
+name: Backup
+
+# Daily encrypted backup of the app database to Cloudflare R2 (SPEC: Integrations → Backups).
+# Runs ~3 AM Pacific. Does nothing (with a warning) until the secrets and public key are set up.
+on:
+  schedule:
+    - cron: "17 11 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Secrets live in the "backup" environment, restricted to the main branch.
+    environment: backup
+    env:
+      DB_URL: ${{ secrets.BACKUP_DB_URL }}
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      # R2 doesn't support the newer default S3 checksums of AWS CLI v2.23+.
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      KEEP: "30"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check setup
+        id: setup
+        run: |
+          missing=""
+          for v in DB_URL R2_ACCOUNT_ID R2_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          grep -q '^age1' backup/age-recipients.txt 2>/dev/null || missing="$missing backup/age-recipients.txt"
+          if [ -n "$missing" ]; then
+            echo "::warning::Backup not set up yet (missing:$missing). See docs/BACKUP.md."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install pg_dump 17 and age
+        if: steps.setup.outputs.ready == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common age > /dev/null
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y > /dev/null
+          sudo apt-get install -y -qq postgresql-client-17 > /dev/null
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - name: Dump and encrypt
+        if: steps.setup.outputs.ready == 'true'
+        run: OUT=out scripts/backup.sh
+      - name: Upload to R2 and keep the newest ${{ env.KEEP }}
+        if: steps.setup.outputs.ready == 'true'
+        run: |
+          ep="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          aws s3 cp out/*.age "s3://${R2_BUCKET}/" --endpoint-url "$ep" --only-show-errors
+          aws s3api list-objects-v2 --bucket "$R2_BUCKET" --prefix fitness- --endpoint-url "$ep" \
+            --query 'Contents[].Key' --output text | tr '\t' '\n' | grep '\.age$' | sort -r > keys.txt
+          echo "backups stored: $(wc -l < keys.txt)"
+          tail -n +$((KEEP + 1)) keys.txt | while read -r k; do
+            aws s3 rm "s3://${R2_BUCKET}/$k" --endpoint-url "$ep" --only-show-errors
+            echo "pruned $k"
+          done

@@ -35,8 +35,8 @@ export function TodayView({ profile, date, today, target, entries, picker, weigh
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-5 p-5 pb-28">
       <header className="flex items-center justify-between gap-2">
-        <nav className="flex items-center gap-1" aria-label="Day">
-          <Link className="btn btn-ghost px-3" href={`/?date=${addDays(date, -1)}`} aria-label="Previous day">‹</Link>
+        <nav className="flex min-w-0 items-center gap-1" aria-label="Day">
+          <Link className="btn btn-ghost w-10! px-0!" href={`/?date=${addDays(date, -1)}`} aria-label="Previous day">‹</Link>
           <form action="/" className="flex">
             <input
               type="date"
@@ -44,15 +44,16 @@ export function TodayView({ profile, date, today, target, entries, picker, weigh
               max={today}
               defaultValue={date}
               aria-label="Pick a day"
-              className="input w-auto px-2"
+              className="input w-32! px-2! text-sm"
             />
             <button className="sr-only" type="submit">Go</button>
           </form>
-          {!isToday && <Link className="btn btn-ghost px-3" href={`/?date=${addDays(date, 1)}`} aria-label="Next day">›</Link>}
+          {!isToday && <Link className="btn btn-ghost w-10! px-0!" href={`/?date=${addDays(date, 1)}`} aria-label="Next day">›</Link>}
         </nav>
-        <span className="flex gap-1">
-          <Link className="btn btn-ghost px-3" href="/foods" aria-label="Foods and meals">☰</Link>
-          <Link className="btn btn-ghost px-3" href="/settings" aria-label="Settings">⚙︎</Link>
+        <span className="flex shrink-0 gap-1">
+          <Link className="btn btn-ghost w-10! px-0!" href="/history" aria-label="History">▥</Link>
+          <Link className="btn btn-ghost w-10! px-0!" href="/foods" aria-label="Foods and meals">☰</Link>
+          <Link className="btn btn-ghost w-10! px-0!" href="/settings" aria-label="Settings">⚙︎</Link>
         </span>
       </header>
       <h1 className="text-2xl font-bold" data-testid="day-title">{fmtDate(date, today)}</h1>
@@ -73,7 +74,9 @@ export function TodayView({ profile, date, today, target, entries, picker, weigh
           testId="protein"
         />
       </section>
-      <p className="text-sm text-muted" data-testid="fat-carbs">Fat {t.fat}g · Carbs {t.carbs}g</p>
+      <p className="text-sm text-muted" data-testid="fat-carbs">
+        Fat {macroText(t.fat, t.missingFat, t.count)} · Carbs {macroText(t.carbs, t.missingCarbs, t.count)}
+      </p>
       <Link href="/weight" className="card flex items-center justify-between py-3" data-testid="weight-line">
         <span className="text-sm text-muted">Weight</span>
         <span className="tabular-nums">
@@ -85,6 +88,7 @@ export function TodayView({ profile, date, today, target, entries, picker, weigh
       {suggestion && <SuggestionCard {...suggestion} />}
 
       <DayLog
+        userId={profile.user_id}
         entries={entries}
         date={date}
         isToday={isToday}
@@ -95,6 +99,12 @@ export function TodayView({ profile, date, today, target, entries, picker, weigh
       />
     </main>
   );
+}
+
+/** Unknown is not zero: "30g", "30g + 2 unknown", or "not entered" when no entry has it. */
+function macroText(known: number, missing: number, count: number) {
+  if (count > 0 && missing === count) return "not entered";
+  return missing > 0 ? `${known}g + ${missing} unknown` : `${known}g`;
 }
 
 function Stat({ label, big, small, over, testId }: { label: string; big: string; small: string; over: boolean; testId: string }) {

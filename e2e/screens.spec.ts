@@ -60,7 +60,23 @@ test("phone screenshots", async ({ browser }) => {
   }
   await page.reload();
   await page.screenshot({ path: `${dir}/7-weight.png`, fullPage: true });
+  await page.goto("/history");
+  await page.screenshot({ path: `${dir}/8-history.png`, fullPage: true });
   await page.goto("/settings");
   await page.screenshot({ path: `${dir}/6-settings.png`, fullPage: true });
+  await page.goto("/");
+  await page.context().setOffline(true);
+  await page.getByTestId("add-food").click();
+  await page.getByTestId("quick-add").click();
+  const qa = page.getByRole("dialog", { name: "Quick add" });
+  await qa.getByLabel("Name (optional)").fill("Protein bar");
+  await qa.getByLabel("Calories").fill("210");
+  await qa.getByLabel(/^Protein g/).fill("20");
+  await qa.getByLabel("Notes (optional)").fill("from the gym vending machine");
+  await qa.getByRole("button", { name: "Save" }).click();
+  await page.getByTestId("pending-banner").waitFor();
+  await page.screenshot({ path: `${dir}/9-offline.png` });
+  await page.context().setOffline(false);
+  await page.getByTestId("pending-banner").waitFor({ state: "detached" });
   await ctx.close();
 });

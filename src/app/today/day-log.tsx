@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { logDateFor, mealFor, MEALS, type Meal } from "@/lib/domain/day";
-import { parseEntry, type Required } from "@/lib/domain/entries";
-import { addEntry, deleteEntry, restoreEntry, updateEntry, type EntryResult } from "../entries/actions";
+import { NOTES_MAX, parseEntry, type Required } from "@/lib/domain/entries";
+import { deleteEntry, restoreEntry, updateEntry, type EntryResult } from "../entries/actions";
 import { AddSheet, type Picker } from "./add-sheet";
+import { discardPending, submitOrQueue, useOfflineQueue } from "@/lib/offline-queue";
 
 export type EntryRow = {
   id: string;
@@ -16,9 +17,11 @@ export type EntryRow = {
   carbs_g: number | null;
   source: "app" | "claude";
   log_date: string;
+  notes: string | null;
 };
 
 type Props = {
+  userId: string;
   entries: EntryRow[];
   date: string;
   isToday: boolean;
@@ -30,7 +33,12 @@ type Props = {
 
 const MEAL_LABEL: Record<Meal, string> = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snacks" };
 
-export function DayLog({ entries, date, isToday, timezone, dayEndHour, required, picker }: Props) {
+const OFFLINE_EDIT = "You're offline. Edits and deletes need a connection; new entries still save.";
+
+export function DayLog({ userId, entries, date, isToday, timezone, dayEndHour, required, picker }: Props) {
+  const queue = useOfflineQueue(userId);
+  const pendingHere = queue.filter((p) => p.preview.log_date === date);
+  const [notice, setNotice] = useState<string | null>(null);
   const [adding, setAdding] = useState<false | "pick" | "quick">(false);
   // "Today" is decided on the phone at entry time (spec: day rules).
   const logDate = () => (isToday ? logDateFor(new Date(), timezone, dayEndHour) : date);
@@ -45,12 +53,22 @@ export function DayLog({ entries, date, isToday, timezone, dayEndHour, required,
   const visible = entries.filter((e) => !hidden.has(e.id));
 
   function remove(e: EntryRow) {
+    if (!navigator.onLine) { setEditing(null); setNotice(OFFLINE_EDIT); return; }
+    setNotice(null);
     setHidden((h) => new Set(h).add(e.id));
     setEditing(null);
     setUndo({ id: e.id, name: e.name || `${e.kcal} kcal` });
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setUndo(null), 5000);
-    start(async () => { await deleteEntry(e.id); });
+    start(async () => {
+      try {
+        await deleteEntry(e.id);
+      } catch {
+        setHidden((h) => { const n = new Set(h); n.delete(e.id); return n; });
+        setUndo(null);
+        setNotice(OFFLINE_EDIT);
+      }
+    });
   }
 
   function undoRemove() {
@@ -58,17 +76,51 @@ export function DayLog({ entries, date, isToday, timezone, dayEndHour, required,
     const id = undo.id;
     setUndo(null);
     start(async () => {
-      await restoreEntry(id);
-      setHidden((h) => { const n = new Set(h); n.delete(id); return n; });
+      try {
+        await restoreEntry(id);
+        setHidden((h) => { const n = new Set(h); n.delete(id); return n; });
+      } catch {
+        setNotice("Couldn't undo while offline. Try again when you have signal.");
+      }
     });
   }
 
   return (
     <>
-      {visible.length === 0 ? (
+      {queue.length > 0 && (
+        <div role="status" className="card flex flex-col gap-1 border-accent text-sm" data-testid="pending-banner">
+          <span>
+            <span className="text-accent">●</span> {queue.filter((p) => !p.failed).length} waiting for signal · saved on this phone, syncs automatically
+          </span>
+          {queue.filter((p) => p.failed).map((p) => (
+            <span key={p.key} className="flex items-center justify-between gap-2 text-warn">
+              <span className="truncate">Couldn&apos;t sync {p.preview.name || `${p.preview.kcal} kcal`}: {p.failed}</span>
+              <button type="button" className="text-muted underline" onClick={() => discardPending(userId, p.key)}>Discard</button>
+            </span>
+          ))}
+        </div>
+      )}
+      {notice && <p role="alert" className="card text-sm text-warn" data-testid="offline-notice">{notice}</p>}
+      {pendingHere.length > 0 && (
+        <section className="flex flex-col gap-2" aria-label="Waiting to sync" data-testid="pending">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Waiting to sync</h2>
+          <ul className="flex flex-col gap-2">
+            {pendingHere.map((p) => (
+              <li key={p.key} className="card flex items-center justify-between opacity-80" data-testid="pending-entry">
+                <span className="flex flex-col">
+                  <span className="font-medium">{p.preview.name || "Quick add"}</span>
+                  <span className="text-xs text-muted">{MEAL_LABEL[p.preview.meal as Meal] ?? p.preview.meal} · <span className="text-accent">●</span> not synced yet</span>
+                </span>
+                <span className="tabular-nums font-semibold">{Math.round(p.preview.kcal)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {visible.length === 0 && pendingHere.length === 0 ? (
         <p className="card text-muted" data-testid="empty-day">Nothing logged yet — tap + to add your first food.</p>
       ) : (
-        MEALS.map((m) => {
+        visible.length > 0 && MEALS.map((m) => {
           const rows = visible.filter((e) => e.meal === m);
           if (!rows.length) return null;
           return (
@@ -83,6 +135,7 @@ export function DayLog({ entries, date, isToday, timezone, dayEndHour, required,
                         <span className="text-xs text-muted">
                           {e.protein_g ?? 0}g protein{e.source === "claude" && " · via Claude"}
                         </span>
+                        {e.notes && <span className="line-clamp-1 text-xs text-muted" data-testid="entry-notes">{e.notes}</span>}
                       </span>
                       <span className="tabular-nums font-semibold">{Math.round(e.kcal)}</span>
                     </button>
@@ -106,6 +159,7 @@ export function DayLog({ entries, date, isToday, timezone, dayEndHour, required,
 
       {adding === "pick" && (
         <AddSheet
+          userId={userId}
           picker={picker}
           defaultMeal={mealFor(new Date(), timezone, dayEndHour)}
           logDate={logDate}
@@ -120,7 +174,15 @@ export function DayLog({ entries, date, isToday, timezone, dayEndHour, required,
           required={required}
           initial={null}
           onClose={() => setAdding(false)}
-          submit={(fd) => addEntry(fd)}
+          submit={async (fd) => {
+            const out = await submitOrQueue(userId, "entry", fd, {
+              name: String(fd.get("name") ?? ""),
+              kcal: Number(fd.get("kcal")),
+              meal: String(fd.get("meal") ?? ""),
+              log_date: String(fd.get("log_date") ?? ""),
+            });
+            return out.status === "error" ? out.result : { ok: true };
+          }}
           prepare={(fd) => {
             fd.set("id", crypto.randomUUID());
             fd.set("logged_at", new Date().toISOString());
@@ -135,7 +197,14 @@ export function DayLog({ entries, date, isToday, timezone, dayEndHour, required,
           required={required}
           initial={editing}
           onClose={() => setEditing(null)}
-          submit={(fd) => updateEntry(fd)}
+          submit={async (fd) => {
+            if (!navigator.onLine) return { ok: false, message: OFFLINE_EDIT };
+            try {
+              return await updateEntry(fd);
+            } catch {
+              return { ok: false, message: OFFLINE_EDIT };
+            }
+          }}
           prepare={(fd) => { fd.set("id", editing.id); fd.set("log_date", editing.log_date); }}
           defaultMeal={editing.meal}
           onDelete={() => remove(editing)}
@@ -250,6 +319,18 @@ function EntrySheet({ title, required, initial, defaultMeal, onClose, submit, pr
           <Input name="fat_g" label={label("fat", "Fat g")} defaultValue={v(initial?.fat_g)} error={errors.fat_g} />
           <Input name="carbs_g" label={label("carbs", "Carbs g")} defaultValue={v(initial?.carbs_g)} error={errors.carbs_g} />
         </div>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm text-muted">Notes (optional)</span>
+          <textarea
+            name="notes"
+            className="input min-h-16"
+            maxLength={NOTES_MAX}
+            defaultValue={initial?.notes ?? ""}
+            placeholder="Portion, guesses, source link…"
+            aria-invalid={!!errors.notes}
+          />
+          {errors.notes && <span className="text-sm text-warn">{errors.notes}</span>}
+        </label>
         <label className="flex flex-col gap-1">
           <span className="text-sm text-muted">Meal</span>
           <select name="meal" className="input" defaultValue={defaultMeal}>

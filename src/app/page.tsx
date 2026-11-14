@@ -24,6 +24,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 p-6">
         <h1 className="text-3xl font-bold">Fitness Tracker</h1>
         <p className="text-muted">Log food fast. Hit your calorie and protein targets.</p>
+        {sp.deleted === "1" && (
+          <p role="status" className="card" data-testid="account-deleted">
+            Your account and everything you logged were deleted.
+          </p>
+        )}
         {authError && (
           <p role="alert" className="card text-warn" data-testid="auth-error">
             {authError}
@@ -60,7 +65,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     suggestionFor(supabase, profile, today),
     supabase
       .from("entries")
-      .select("id, name, meal, kcal, protein_g, fat_g, carbs_g, source, log_date")
+      .select("id, name, meal, kcal, protein_g, fat_g, carbs_g, source, log_date, notes")
       .eq("log_date", date)
       .is("deleted_at", null)
       .order("logged_at", { ascending: true }),

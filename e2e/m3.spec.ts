@@ -51,6 +51,8 @@ test("lb user: weigh-ins, 7-day average, replace + undo, weekly suggestion accep
   await weighIn(page, today, "179.0");
   await expect(page.getByTestId("undo-toast")).toContainText("Replaced 180.0 lb");
   await page.getByRole("button", { name: "Undo" }).click();
+  // Let the Undo request finish before reloading (a reload would cancel it mid-flight).
+  await expect(page.getByTestId("latest-weight")).toHaveText("180.0");
   await page.reload();
   await expect(page.getByTestId("latest-weight")).toHaveText("180.0");
   await expect(page.getByTestId("weigh-ins").locator("li")).toHaveCount(10);
@@ -58,7 +60,9 @@ test("lb user: weigh-ins, 7-day average, replace + undo, weekly suggestion accep
   // Delete one day, Undo restores it.
   await page.getByRole("button", { name: `Delete ${addDays(today, -1)}` }).click();
   await expect(page.getByTestId("undo-toast")).toContainText("Deleted 180.5 lb");
+  await expect(page.getByTestId("weigh-ins").locator("li")).toHaveCount(9);
   await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByTestId("weigh-ins").locator("li")).toHaveCount(10);
   await page.reload();
   await expect(page.getByTestId("weigh-ins").locator("li")).toHaveCount(10);
 
