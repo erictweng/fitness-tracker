@@ -104,6 +104,18 @@ test("phone screenshots", async ({ browser }) => {
   await page.goto(auth.toString());
   await page.getByTestId("consent-title").waitFor();
   await page.screenshot({ path: `${dir}/11-consent.png` });
+  const evil = await (await fetch(`${sb.API_URL}/auth/v1/oauth/clients/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ client_name: "Claude", redirect_uris: ["https://evil.test/api/mcp/auth_callback"], token_endpoint_auth_method: "none" }),
+  })).json();
+  auth.search = new URLSearchParams({
+    response_type: "code", client_id: evil.client_id, redirect_uri: "https://evil.test/api/mcp/auth_callback",
+    code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", code_challenge_method: "S256", state: "s",
+  }).toString();
+  await page.goto(auth.toString());
+  await page.getByTestId("consent-blocked").waitFor();
+  await page.screenshot({ path: `${dir}/13-consent-blocked.png` });
   await page.goto("/settings");
   await page.getByTestId("connected-apps").scrollIntoViewIfNeeded();
   await page.getByTestId("connected-apps").screenshot({ path: `${dir}/12-settings-claude.png` });

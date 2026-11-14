@@ -14,6 +14,12 @@ log food, weight and workouts by talking to it.
   - stamp everything Claude writes as `source = 'claude'` (shown as "via Claude"),
   - block deletes, settings/targets/saved-food changes, account deletion and admin powers for Claude
     tokens, even if someone calls Supabase directly with the token.
+- **Only Claude can connect.** Dynamic registration lets anyone register an app called "Claude", so the
+  consent page checks where the app sends the user back (`src/lib/oauth-redirects.ts`): only
+  `https://claude.ai/api/mcp/auth_callback`, `https://claude.com/api/mcp/auth_callback`, or loopback
+  (`http://localhost|127.0.0.1|[::1]:<port>`, for Claude Code on your own computer). Anything else gets
+  "This app isn't allowed", no Allow button, and the request is denied without sending the browser there.
+  The approve action re-checks, so a forged form post can't get around it.
 - `/api/mcp` checks each token with Supabase Auth on every call, so **Disconnect** in Settings works
   on the next call (not after the token expires).
 
@@ -55,6 +61,10 @@ Claude Code: `claude mcp add --transport http fitness https://<live domain>/api/
 - **Claude says it can't connect / discovery failed:** check step 2 is on, and that
   `https://<project-ref>.supabase.co/.well-known/oauth-authorization-server/auth/v1` returns JSON.
 - **Consent page says "expired or already used":** start the connection again from Claude (requests last ~10 minutes).
+- **"This app isn't allowed" for real Claude:** Claude changed its callback address. Add it to
+  `CLAUDE_CALLBACKS` in `src/lib/oauth-redirects.ts`.
+- **Junk apps in Supabase → OAuth Apps:** harmless (they can't do anything without a user's Allow);
+  delete them there.
 - **Uninvited people** can't get past Google sign-in, same as the app.
 - **Disconnect:** app → Settings → Claude → Disconnect.
 
