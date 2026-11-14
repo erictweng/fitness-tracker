@@ -7,6 +7,7 @@ import { suggestionFor } from "@/lib/suggest";
 import { SettingsForm, TargetsForm } from "./settings-forms";
 import { DeleteAccountForm } from "../account/danger-forms";
 import { ConnectedApps } from "./connected-apps";
+import { SignOutButton } from "./sign-out";
 
 export default async function SettingsPage() {
   await connection();
@@ -54,9 +55,7 @@ export default async function SettingsPage() {
       <section className="card flex flex-col gap-3">
         <p className="text-sm text-muted">Signed in as {profile.email}</p>
         {profile.is_admin && <Link className="btn btn-ghost" href="/admin" data-testid="admin-link">Admin</Link>}
-        <form action="/auth/signout" method="post">
-          <button className="btn btn-ghost w-full" type="submit">Sign out</button>
-        </form>
+        <SignOutButton userId={profile.user_id} />
       </section>
     </main>
   );

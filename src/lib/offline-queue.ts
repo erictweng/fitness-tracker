@@ -4,6 +4,7 @@ import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { addEntry } from "@/app/entries/actions";
 import { logFood, logMeal } from "@/app/foods/actions";
+import { applyStep, classify, resetItem, type SendResult } from "@/lib/domain/queue";
 
 /**
  * Offline logging (spec: "No signal"). New entries made without a connection are kept
@@ -21,11 +22,14 @@ export type Pending = {
   preview: { name: string; kcal: number; meal: string; log_date: string };
   queuedAt: string;
   failed?: string;
+  attempts?: number;
 };
-type Result = { ok: true } | { ok: false; errors?: Record<string, string>; message?: string };
+type Result = SendResult;
 
 const EVENT = "ft-queue";
-const storageKey = (userId: string) => `ft-queue-v1:${userId}`;
+const FLUSH = "ft-queue-flush";
+const PREFIX = "ft-queue-v1:";
+const storageKey = (userId: string) => `${PREFIX}${userId}`;
 const ACTIONS: Record<QueueKind, (fd: FormData) => Promise<Result>> = { entry: addEntry, food: logFood, meal: logMeal };
 
 function readRaw(userId: string): string {
@@ -89,7 +93,11 @@ export async function submitOrQueue(
 
 let flushing = false;
 
-/** Send queued items in order. Returns how many were saved. Stops at the first network failure. */
+/**
+ * Send queued items in order. Returns how many were saved. Stops at the first network
+ * failure; an item the server keeps refusing is skipped (and shown as failed after
+ * MAX_ATTEMPTS) so it can never hold up the ones behind it.
+ */
 export async function flushQueue(userId: string): Promise<number> {
   if (flushing || !navigator.onLine) return 0;
   flushing = true;
@@ -101,26 +109,41 @@ export async function flushQueue(userId: string): Promise<number> {
       try {
         r = await ACTIONS[item.kind](toFormData(item.fields));
       } catch {
-        break; // still offline
+        break; // still offline (or the session needs a fresh sign-in): keep everything
       }
-      const q = readQueue(userId);
-      if (r.ok) {
-        saved += 1;
-        writeQueue(userId, q.filter((p) => p.key !== item.key));
-      } else if (r.errors && Object.keys(r.errors).length) {
-        // The server rejected it (e.g. a deleted food): keep it visible so it isn't lost silently.
-        const why = Object.values(r.errors)[0];
-        writeQueue(userId, q.map((p) => (p.key === item.key ? { ...p, failed: why } : p)));
-      } else if (r.message && /gone|no foods|bad request/i.test(r.message)) {
-        writeQueue(userId, q.map((p) => (p.key === item.key ? { ...p, failed: r.message } : p)));
-      } else {
-        break; // server hiccup: try again later
-      }
+      const step = classify(r);
+      if (step.kind === "saved") saved += 1;
+      writeQueue(userId, applyStep(readQueue(userId), item.key, step));
     }
   } finally {
     flushing = false;
   }
   return saved;
+}
+
+/** Retry button: put the item back in line and try right away. */
+export function retryPending(userId: string, key: string) {
+  writeQueue(userId, resetItem(readQueue(userId), key));
+  window.dispatchEvent(new Event(FLUSH));
+}
+
+/** Forget this user's unsent entries on this phone (sign-out). */
+export function clearQueue(userId: string) {
+  try {
+    localStorage.removeItem(storageKey(userId));
+    window.dispatchEvent(new Event(EVENT));
+  } catch {}
+}
+
+/** Forget every account's unsent entries on this phone (after an account is deleted). */
+export function clearAllQueues() {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(PREFIX)) localStorage.removeItem(k);
+    }
+    window.dispatchEvent(new Event(EVENT));
+  } catch {}
 }
 
 export function discardPending(userId: string, key: string) {
@@ -148,10 +171,12 @@ export function useOfflineQueue(userId: string): Pending[] {
     };
     void run();
     window.addEventListener("online", run);
+    window.addEventListener(FLUSH, run);
     const t = setInterval(run, 30_000);
     return () => {
       alive = false;
       window.removeEventListener("online", run);
+      window.removeEventListener(FLUSH, run);
       clearInterval(t);
     };
   }, [userId, router]);

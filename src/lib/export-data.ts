@@ -13,6 +13,8 @@ const TABLES = {
   workouts: "id, log_date, type, minutes, kcal, notes, source, created_at, updated_at",
 } as const;
 
+const PAGE = 1000;
+
 const SETTINGS =
   "email, sex, birth_date, height_cm, activity_level, goal, goal_adjust_kcal, protein_rule, protein_value, weight_unit, height_unit, day_end_hour, require_protein, require_fat, require_carbs, timezone, onboarded_at, created_at";
 
@@ -21,11 +23,17 @@ export async function buildExport(supabase: SupabaseClient, userId: string): Pro
   const files: Record<string, Uint8Array> = {};
   const counts: Record<string, number> = {};
   for (const [table, cols] of Object.entries(TABLES)) {
-    let q = supabase.from(table).select(cols).eq("user_id", userId);
-    if (table === "entries" || table === "weigh_ins" || table === "workouts") q = q.is("deleted_at", null);
-    const { data, error } = await q.order("id").limit(100_000);
-    if (error) throw new Error(`export ${table}: ${error.code}`);
-    const rows = (data ?? []) as unknown as Record<string, unknown>[];
+    const live = table === "entries" || table === "weigh_ins" || table === "workouts";
+    const rows: Record<string, unknown>[] = [];
+    // Supabase returns at most 1,000 rows per request (API "max rows"), so page through.
+    for (let from = 0; ; from += PAGE) {
+      let q = supabase.from(table).select(cols).eq("user_id", userId);
+      if (live) q = q.is("deleted_at", null);
+      const { data, error } = await q.order("id").range(from, from + PAGE - 1);
+      if (error) throw new Error(`export ${table}: ${error.code}`);
+      rows.push(...((data ?? []) as unknown as Record<string, unknown>[]));
+      if (!data || data.length < PAGE) break;
+    }
     files[`${table}.csv`] = strToU8(toCsv(rows, cols.split(", ")));
     counts[table] = rows.length;
   }

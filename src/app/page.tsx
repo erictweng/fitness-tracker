@@ -6,6 +6,7 @@ import { addDays, isIsoDate } from "@/lib/domain/day";
 import { sevenDayAverage, shouldSuggest } from "@/lib/domain/weight";
 import { latestWeighIn, loadWeighIns, suggestionFor } from "@/lib/suggest";
 import { TodayView } from "./today/today-view";
+import { ClearQueues } from "./clear-queues";
 import { loadPicker } from "@/lib/foods-data";
 import type { EntryRow } from "./today/day-log";
 import { getSupabaseConfig } from "@/lib/supabase/config";
@@ -27,6 +28,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         {sp.deleted === "1" && (
           <p role="status" className="card" data-testid="account-deleted">
             Your account and everything you logged were deleted.
+            <ClearQueues />
           </p>
         )}
         {authError && (
