@@ -269,6 +269,9 @@ Derek (GitHub `dsheep3201`, collaborator with write access) reviewed the spec in
 - Offline queue in localStorage instead of IndexedDB (small queue, simpler, same behaviour); only new entries are queued — Decided by agent
 - Unknown fat/carbs shown as "30g + 2 unknown" / "not entered", never as 0 — Decided by agent
 - Backups: one consistent pg_dump of app + auth tables, age-encrypted, 30 kept; secrets in a `backup` GitHub environment limited to `main` — Decided by agent
+- Claude-token limits enforced in the database (restrictive RLS + function checks on the token's `client_id`), not only by which tools exist — Decided by agent
+- `/api/mcp` verifies each token with Supabase Auth on every call so Disconnect takes effect immediately (~1 extra auth request per tool call) — Decided by agent
+- Claude passes optional client UUIDs (`entry_id`, …) for retry safety; without one, each call is a new item — Decided by agent
 - Suggestion card shows from Monday until acted on or the week ends; at most one target change per week (not only on Monday itself, so a missed Monday isn't a missed week) — Decided by agent
 
 ## Open questions / parked

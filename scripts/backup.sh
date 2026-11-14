@@ -36,7 +36,8 @@ psql "$DB_URL" -X -q -At -F, -v ON_ERROR_STOP=1 -c "
   union all select 'meal_items', count(*) from public.meal_items
   union all select 'entries', count(*) from public.entries
   union all select 'weigh_ins', count(*) from public.weigh_ins
-  union all select 'targets', count(*) from public.targets" > "$work/counts.csv"
+  union all select 'targets', count(*) from public.targets
+  union all select 'workouts', count(*) from public.workouts" > "$work/counts.csv"
 
 tar -C "$work" -czf "$work/backup.tar.gz" data.dump functions.dump counts.csv
 name="fitness-$stamp.tar.gz.age"

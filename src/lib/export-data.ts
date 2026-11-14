@@ -10,6 +10,7 @@ const TABLES = {
   meal_items: "id, meal_id, food_id, servings",
   weigh_ins: "id, log_date, weight_kg, source, updated_at",
   targets: "id, effective_from, kcal, protein_g, source, created_at",
+  workouts: "id, log_date, type, minutes, kcal, notes, source, created_at, updated_at",
 } as const;
 
 const SETTINGS =
@@ -21,7 +22,7 @@ export async function buildExport(supabase: SupabaseClient, userId: string): Pro
   const counts: Record<string, number> = {};
   for (const [table, cols] of Object.entries(TABLES)) {
     let q = supabase.from(table).select(cols).eq("user_id", userId);
-    if (table === "entries" || table === "weigh_ins") q = q.is("deleted_at", null);
+    if (table === "entries" || table === "weigh_ins" || table === "workouts") q = q.is("deleted_at", null);
     const { data, error } = await q.order("id").limit(100_000);
     if (error) throw new Error(`export ${table}: ${error.code}`);
     const rows = (data ?? []) as unknown as Record<string, unknown>[];

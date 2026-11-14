@@ -5,7 +5,7 @@ protein against your own targets (cut / maintain / bulk). Every log is private.
 
 - **Live:** https://fitness-tracker-vert-three.vercel.app (invite-only, Google sign-in)
 - **Spec:** [SPEC.md](SPEC.md) · **Status:** [STATUS.md](STATUS.md) · **Tasks:** [TASKS.md](TASKS.md)
-- **Setup:** [docs/SETUP.md](docs/SETUP.md) · **Backups:** [docs/BACKUP.md](docs/BACKUP.md)
+- **Setup:** [docs/SETUP.md](docs/SETUP.md) · **Backups:** [docs/BACKUP.md](docs/BACKUP.md) · **Claude:** [docs/CLAUDE-CONNECTOR.md](docs/CLAUDE-CONNECTOR.md)
 - **Stack:** Next.js 16 (App Router) · Supabase (Postgres + Google auth + row-level security) · Vercel
 - **Launch:** Fri 2026-11-20
 
@@ -21,6 +21,9 @@ protein against your own targets (cut / maintain / bulk). Every log is private.
   Averages skip days you didn't log and today.
 - **Your data:** export everything as a zip of CSVs; delete your account (removes every row now).
 - **Admin:** invite / revoke by email, see the user list, remove a user. No access to anyone's logs.
+- **Workouts:** type, minutes, calories burned, notes; shown on Today for context, never added to the target.
+- **Claude connector:** connect your own Claude and tell it what you ate; it logs, reads and corrects
+  entries (marked "via Claude"), but can't delete or change settings. Disconnect in Settings.
 - **Backups:** daily encrypted (age) dump to Cloudflare R2, newest 30 kept, restore checked in CI.
 
 ## Privacy model
@@ -37,7 +40,8 @@ protein against your own targets (cut / maintain / bulk). Every log is private.
 src/app/             screens + server actions (today, history, weight, foods, settings, admin, export, account)
 src/lib/domain/      pure logic with unit tests (targets, day boundary, entries, foods, weight, history, csv)
 src/lib/             data loading, session, offline queue, export
-supabase/migrations/ 0001 → 0005, idempotent; run in order
+src/lib/mcp/         Claude connector: token check, MCP server, tools (served at /api/mcp)
+supabase/migrations/ 0001 → 0006, idempotent; run in order
 supabase/tests/      migration + RLS assertions
 e2e/                 Playwright tests against local Supabase (+ opt-in phone screenshots)
 scripts/             db-check, backup, restore-check, backup-roundtrip

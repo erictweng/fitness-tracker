@@ -1,5 +1,6 @@
 import { test } from "@playwright/test";
 import { onboard, resetUser, signIn } from "./helpers";
+import { localSupabaseEnv } from "./local-env";
 
 // Phone screenshots for review. Opt-in: SCREENSHOTS_DIR=/abs/path npx playwright test e2e/screens.spec.ts
 const dir = process.env.SCREENSHOTS_DIR;
@@ -78,5 +79,33 @@ test("phone screenshots", async ({ browser }) => {
   await page.screenshot({ path: `${dir}/9-offline.png` });
   await page.context().setOffline(false);
   await page.getByTestId("pending-banner").waitFor({ state: "detached" });
+
+  // M4.5: a workout on Today, and the Claude consent screen.
+  await page.getByTestId("add-workout").click();
+  const ws = page.getByRole("dialog", { name: "Add workout" });
+  await ws.getByLabel("Type").fill("Push day");
+  await ws.getByLabel("Minutes").fill("45");
+  await ws.getByLabel("Calories burned (optional)").fill("250");
+  await ws.getByRole("button", { name: "Save" }).click();
+  await page.getByTestId("workout").waitFor();
+  await page.getByTestId("workouts").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${dir}/10-workouts.png` });
+  const sb = localSupabaseEnv();
+  const reg = await (await fetch(`${sb.API_URL}/auth/v1/oauth/clients/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ client_name: "Claude", redirect_uris: ["http://127.0.0.1:3999/callback"], token_endpoint_auth_method: "none" }),
+  })).json();
+  const auth = new URL(`${sb.API_URL}/auth/v1/oauth/authorize`);
+  auth.search = new URLSearchParams({
+    response_type: "code", client_id: reg.client_id, redirect_uri: "http://127.0.0.1:3999/callback",
+    code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", code_challenge_method: "S256", state: "s",
+  }).toString();
+  await page.goto(auth.toString());
+  await page.getByTestId("consent-title").waitFor();
+  await page.screenshot({ path: `${dir}/11-consent.png` });
+  await page.goto("/settings");
+  await page.getByTestId("connected-apps").scrollIntoViewIfNeeded();
+  await page.getByTestId("connected-apps").screenshot({ path: `${dir}/12-settings-claude.png` });
   await ctx.close();
 });

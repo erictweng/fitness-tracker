@@ -136,7 +136,7 @@ test("export: zip of only my own CSVs", async ({ browser }) => {
   expect(download.suggestedFilename()).toMatch(/^fitness-export-\d{4}-\d{2}-\d{2}\.zip$/);
   const files = unzipSync(new Uint8Array(await readFile((await download.path())!)));
   expect(Object.keys(files).sort()).toEqual(
-    ["README.txt", "entries.csv", "foods.csv", "meal_items.csv", "meals.csv", "settings.csv", "targets.csv", "weigh_ins.csv"],
+    ["README.txt", "entries.csv", "foods.csv", "meal_items.csv", "meals.csv", "settings.csv", "targets.csv", "weigh_ins.csv", "workouts.csv"],
   );
   const entries = strFromU8(files["entries.csv"]);
   const lines = entries.trim().split("\r\n");
@@ -172,7 +172,7 @@ test("delete account: typed confirmation, everything gone, signed out", async ({
   await form.getByRole("button", { name: "Delete forever" }).click();
   await expect(page.getByTestId("account-deleted")).toBeVisible();
   await expect(page.getByTestId("google-sign-in")).toBeVisible();
-  for (const t of ["entries", "foods", "meals", "meal_items", "weigh_ins", "targets"]) expect(await rows(t, uid), t).toBe(0);
+  for (const t of ["entries", "foods", "meals", "meal_items", "weigh_ins", "targets", "workouts"]) expect(await rows(t, uid), t).toBe(0);
   const { count } = await admin.from("profiles").select("*", { count: "exact", head: true }).eq("user_id", uid);
   expect(count).toBe(0);
   const { data } = await admin.auth.admin.getUserById(uid);
