@@ -45,10 +45,11 @@ export default async function SettingsPage() {
           <ul className="mt-2 flex list-disc flex-col gap-1 pl-5">
             <li>Stored: your email, settings, body stats, food log, saved foods and meals, weigh-ins and targets.</li>
             <li>Only you can read your log. Other users can&apos;t, and the admin page shows emails and dates only.</li>
-            <li>Eric and Derek run this app. The servers it runs on could technically see data passing through; we don&apos;t look at your logs.</li>
+            <li>The people who run this app don&apos;t look at your logs. The servers it runs on could technically see data passing through.</li>
             <li>No ads, analytics or trackers.</li>
             <li>An encrypted backup is made daily and each copy is deleted after 30 days. Deleting your account removes your data now; it leaves the backups as they age out.</li>
           </ul>
+          <Link className="mt-2 inline-block underline" href="/privacy" data-testid="privacy-link">Full privacy policy</Link>
         </details>
       </section>
 

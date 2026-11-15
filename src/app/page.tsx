@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getMe, requireUser } from "@/lib/session";
@@ -45,7 +46,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             Sign-in isn&apos;t set up on this deployment yet. See docs/SETUP.md.
           </p>
         )}
-        <p className="text-sm text-muted">Invite-only. Your log is private to you.</p>
+        <p className="text-sm text-muted">
+          Invite-only. Your log is private to you. <Link className="underline" href="/privacy">Privacy policy</Link>
+        </p>
       </main>
     );
   }
