@@ -80,7 +80,7 @@ by hand in the Supabase SQL Editor; they're all safe to run twice.
   passing checks and a review before it goes live.
 - **Backup secrets are locked down:** they can only be used by code that's already been approved.
 
-### Audit fixes (pull request #5, waiting to be merged)
+### Audit fixes (pull request #5)
 A full review of the project found four code problems, all now fixed and tested:
 - **Export was cutting off at 1,000 rows** per table without saying so; it now includes everything.
 - **Other websites could embed our pages** (a setup for tricking someone into a click); now blocked.
@@ -88,6 +88,23 @@ A full review of the project found four code problems, all now fixed and tested:
   10 tries, and has Retry / Discard buttons.
 - **Unsent offline entries stayed on the phone after signing out;** sign-out now warns, then clears them,
   and deleting your account clears them too.
+
+### Privacy policy page
+A public page at `/privacy` in plain words: what's stored, who can see it, connected apps, backups,
+export and delete. Linked from the sign-in page and Settings. WHOOP requires one for its app.
+
+### WHOOP (M5)
+- **Connect your own WHOOP** in Settings. The app only asks to *read* daily calories burned and
+  workouts; it never writes anything to WHOOP.
+- **Today** shows what you've burned (WHOOP's day total, "so far" until the day ends) and
+  **eaten − burned**. It's for context only: your calorie target never changes because of it.
+- **WHOOP workouts show up by themselves**, marked "via WHOOP". Nothing is counted twice: the burn
+  comes from WHOOP's day total, which already includes every workout, even ones you also typed in.
+- **Weekly target suggestions get smarter:** after 7 full days, they use your real average burn
+  from WHOOP instead of a formula guess (still never below your resting burn, never automatic).
+- **Your WHOOP sign-in is locked up:** it's encrypted before it's stored, nobody can read it
+  directly, and Claude can't touch it. Disconnect deletes it and tells WHOOP to cut access.
+- Details: [WHOOP.md](WHOOP.md).
 
 ## Big decisions (and why)
 | Decision | Why |
@@ -104,19 +121,21 @@ A full review of the project found four code problems, all now fixed and tested:
 
 ## How we know it works
 Every change runs, automatically:
-- **102 small tests** of the logic (targets, day boundaries, unknown macros, offline queue rules, export
-  format, safe redirects…).
+- **117 small tests** of the logic (targets, day boundaries, unknown macros, offline queue rules, export
+  format, safe redirects, WHOOP day rules and token encryption…).
 - **Database privacy checks** on a real Postgres: one user can't see another's data, the admin can't read
-  logs, Claude's limits hold, uninvited people are blocked.
-- **23 browser tests** that click through the real app against a local copy of Supabase: onboarding,
+  logs, Claude's limits hold, uninvited people are blocked, WHOOP sign-ins can't be read or reached
+  by Claude.
+- **31 browser tests** that click through the real app against a local copy of Supabase: onboarding,
   logging, saved foods, weight, history, offline sync, export, account deletion, the full Claude sign-in
-  and every Claude tool, and the "only real Claude" lock-down.
+  and every Claude tool, the "only real Claude" lock-down, the privacy page, and the whole WHOOP flow
+  against a stand-in WHOOP (connect, sync, token refresh, disconnect).
 - **A backup round trip:** make a backup, check a wrong key can't open it, restore it, compare row counts.
 - **A secret scan** that blocks any committed password or key.
 
 ## Still to do before launch (Nov 20)
 **Setup:**
-1. Merge pull request #5 (audit fixes).
+1. Run `0007_m5_whoop.sql` in the Supabase SQL Editor, then connect your WHOOP in Settings.
 2. Save the backup private key (`~/fitness-backup-key.txt` on the Mac mini) into a password manager,
    then delete the file.
 3. Turn on backups: Cloudflare R2 bucket + access token, then add 5 secrets in GitHub
@@ -128,9 +147,9 @@ Every change runs, automatically:
 "in-app AI" idea; and the order for the v2 list below.
 
 ## After launch
-- **Usage check (Nov 20 → Dec 4):** if the group logs on at least 12 of 14 days, add WHOOP next (M5).
+- **Usage check (Nov 20 → Dec 4):** still worth watching: are people logging at least 12 of 14 days?
 - **v2** (order to agree): meal planning, optional weight tracking, complete/partial days,
-  fuller workouts (exercises, sets, reps), start/stop workout buttons, sleep, trackers (WHOOP, Oura),
+  fuller workouts (exercises, sets, reps), start/stop workout buttons, sleep, trackers (Oura next),
   and later characters and a shared space.
 - **Hosting move:** our own server (Terra) becomes the main site, with Vercel as the automatic fallback.
 - **Nice to have:** open the app from the home screen with no signal.

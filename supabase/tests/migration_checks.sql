@@ -379,4 +379,91 @@ do $$ begin
   assert (select source from public.workouts where id = '00000000-0000-0000-0000-0000000000f2') = 'claude', 'claude workout stamped';
 end $$;
 
+-- ---------------------------------------------------------------- M5: WHOOP
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b"}', false);
+do $$
+declare n int;
+begin
+  -- Plaintext tokens are refused.
+  begin
+    perform public.whoop_save_connection(1, 'plain', null, now() + interval '1 hour', 'offline');
+    raise exception 'plaintext token should be refused';
+  exception when invalid_parameter_value then null;
+  end;
+  perform public.whoop_save_connection(42, 'v1:acc', 'v1:ref', now() + interval '1 hour', 'offline read:cycles read:workout');
+  assert (select connected from public.whoop_status()), 'connected after save';
+  -- Even the owner can't read the token table directly.
+  begin
+    perform 1 from public.whoop_connections;
+    raise exception 'owner must not read whoop_connections directly';
+  exception when insufficient_privilege then null;
+  end;
+  -- Sync lock: second begin within 60 s gets nothing.
+  assert (select count(*) from public.whoop_begin_sync(0)) = 1, 'first sync gets tokens';
+  assert (select count(*) from public.whoop_begin_sync(0)) = 0, 'concurrent sync locked out';
+  perform public.whoop_finish_sync('v1:acc2', 'v1:ref2', now() + interval '1 hour',
+    '[{"log_date":"2026-11-19","kcal":2500,"in_progress":false},{"log_date":"2026-11-20","kcal":900,"in_progress":true}]',
+    '[{"external_id":"w-1","log_date":"2026-11-20","type":"Running","minutes":31,"kcal":null,"notes":null}]', null);
+  assert (select count(*) from public.whoop_days) = 2, 'days imported';
+  assert (select source from public.workouts where external_id = 'w-1') = 'whoop', 'workout imported as whoop';
+  assert (select kcal is null from public.workouts where external_id = 'w-1'), 'unscored kcal stays unknown';
+  -- Fresh: begin with min age 600 s gets nothing; with 0 it does.
+  assert (select count(*) from public.whoop_begin_sync(600)) = 0, 'fresh sync skipped';
+  assert (select count(*) from public.whoop_begin_sync(0)) = 1, 'forced sync runs';
+  -- Re-import: scored kcal fills in, no duplicate; a deleted workout stays deleted.
+  perform public.whoop_finish_sync(null, null, null, '[]',
+    '[{"external_id":"w-1","log_date":"2026-11-20","type":"Running","minutes":31,"kcal":320,"notes":"Strain 9.1"}]', null);
+  assert (select count(*) from public.workouts where external_id = 'w-1') = 1, 'no duplicate import';
+  assert (select kcal from public.workouts where external_id = 'w-1') = 320, 'scored kcal filled in';
+  update public.workouts set deleted_at = now() where external_id = 'w-1';
+  perform public.whoop_begin_sync(0);
+  perform public.whoop_finish_sync(null, null, null, '[]',
+    '[{"external_id":"w-1","log_date":"2026-11-20","type":"Running","minutes":31,"kcal":330,"notes":null}]', null);
+  assert (select deleted_at is not null and kcal = 320 from public.workouts where external_id = 'w-1'), 'deleted stays deleted';
+  -- The app can't write day totals directly.
+  begin
+    insert into public.whoop_days (log_date, kcal) values ('2026-11-18', 9999);
+    raise exception 'direct whoop_days insert should fail';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+-- Claude's token can't touch WHOOP at all.
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","client_id":"claude-test"}', false);
+do $$ begin
+  assert (select count(*) from public.whoop_status()) = 0, 'claude sees no whoop status';
+  begin
+    perform public.whoop_tokens();
+    raise exception 'claude must not get whoop tokens';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.whoop_begin_sync(0);
+    raise exception 'claude must not sync';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.whoop_disconnect();
+    raise exception 'claude must not disconnect';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+-- Another user sees none of b's WHOOP data.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a"}', false);
+do $$ begin
+  assert (select count(*) from public.whoop_days) = 0, 'other user sees no whoop days';
+  assert (select count(*) from public.whoop_status()) = 0, 'other user not connected';
+  assert (select count(*) from public.whoop_begin_sync(0)) = 0, 'other user gets no tokens';
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b"}', false);
+select public.whoop_disconnect();
+do $$ begin
+  assert (select count(*) from public.whoop_status()) = 0, 'disconnect removes tokens';
+  assert (select count(*) from public.whoop_days) = 2, 'history kept after disconnect';
+end $$;
+reset role;
+
 \echo 'fitness-tracker migration checks passed'

@@ -5,7 +5,8 @@ import { getMe, requireUser } from "@/lib/session";
 import { targetFor, todayFor } from "@/lib/profile";
 import { addDays, isIsoDate } from "@/lib/domain/day";
 import { sevenDayAverage, shouldSuggest } from "@/lib/domain/weight";
-import { latestWeighIn, loadWeighIns, suggestionFor } from "@/lib/suggest";
+import { latestWeighIn, loadWeighIns, loadWhoopDays, suggestionFor } from "@/lib/suggest";
+import { whoopStatus } from "@/lib/whoop/sync";
 import { TodayView } from "./today/today-view";
 import { ClearQueues } from "./clear-queues";
 import { loadPicker } from "@/lib/foods-data";
@@ -61,7 +62,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const rawDate = Array.isArray(sp.date) ? sp.date[0] : sp.date;
   const date = rawDate && isIsoDate(rawDate) && rawDate <= today ? rawDate : today;
 
-  const [target, picker, weighIns, lastWeighIn, todaysTarget, sugg, { data: entries }, { data: workouts }] = await Promise.all([
+  const [target, picker, weighIns, lastWeighIn, todaysTarget, sugg, { data: entries }, { data: workouts }, whoopDays, whoop] = await Promise.all([
     targetFor(supabase, date),
     loadPicker(supabase),
     loadWeighIns(supabase, addDays(today, -6), today),
@@ -80,6 +81,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       .eq("log_date", date)
       .is("deleted_at", null)
       .order("created_at", { ascending: true }),
+    loadWhoopDays(supabase, date, date),
+    whoopStatus(supabase),
   ]);
 
   const rows: EntryRow[] = (entries ?? []).map((e) => ({
@@ -98,10 +101,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     sugg &&
     todaysTarget &&
     shouldSuggest({ today, current: todaysTarget, suggestion: sugg.suggestion, dismissedWeek: profile.suggestion_dismissed_week })
-      ? { kcal: sugg.suggestion.kcal, protein: sugg.suggestion.proteinG, fromKcal: todaysTarget.kcal, fromProtein: todaysTarget.protein_g }
+      ? { kcal: sugg.suggestion.kcal, protein: sugg.suggestion.proteinG, fromKcal: todaysTarget.kcal, fromProtein: todaysTarget.protein_g, burnSource: sugg.suggestion.burnSource }
       : null;
 
   return (
-    <TodayView profile={profile} date={date} today={today} target={target} entries={rows} workouts={workouts ?? []} picker={picker} weight={weight} suggestion={suggestion} />
+    <TodayView profile={profile} date={date} today={today} target={target} entries={rows} workouts={workouts ?? []} picker={picker} weight={weight} suggestion={suggestion} whoop={{ connected: whoop.connected, day: whoopDays[0] ?? null }} />
   );
 }

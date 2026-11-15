@@ -62,3 +62,13 @@
 - [x] agent — Offline queue cleared on sign-out (with a warning if anything is unsent) and after account deletion
 - [ ] Eric — backups: save the private key, R2 + secrets (docs/BACKUP.md); invite check on live; Derek accepts the invite
 - [ ] later — offline app shell (open from the home screen with no signal)
+
+## M5 WHOOP (2026-11-14, branch `m5-whoop`)
+- [x] agent — Public privacy policy page `/privacy` (needed by WHOOP)
+- [x] agent — Migration 0007: `whoop_connections` (encrypted tokens, no direct access, Claude refused), `whoop_days`, one-import-per-WHOOP-workout index, sync lock + import functions
+- [x] agent — OAuth connect/callback (state cookie), token encryption, refresh with rotation, paged cycle/workout fetch, sync on Today open + Sync now, Disconnect (revokes at WHOOP)
+- [x] agent — Today WHOOP card (burned, eaten − burned), WHOOP workouts "via WHOOP", no double counting, 14-day burn in weekly suggestions, export `whoop_days.csv`
+- [x] agent — Tests: unit (day rules, average burn, crypto), DB checks, e2e vs fake WHOOP; mutation-checked
+- [ ] Eric — run `supabase/migrations/0007_m5_whoop.sql` in the hosted SQL Editor, merge the PR, connect WHOOP in Settings
+- [ ] Eric + agent — after a week: compare the app's burned numbers with the WHOOP app's Calories
+

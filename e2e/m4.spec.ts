@@ -136,7 +136,7 @@ test("export: zip of only my own CSVs", async ({ browser }) => {
   expect(download.suggestedFilename()).toMatch(/^fitness-export-\d{4}-\d{2}-\d{2}\.zip$/);
   const files = unzipSync(new Uint8Array(await readFile((await download.path())!)));
   expect(Object.keys(files).sort()).toEqual(
-    ["README.txt", "entries.csv", "foods.csv", "meal_items.csv", "meals.csv", "settings.csv", "targets.csv", "weigh_ins.csv", "workouts.csv"],
+    ["README.txt", "entries.csv", "foods.csv", "meal_items.csv", "meals.csv", "settings.csv", "targets.csv", "weigh_ins.csv", "whoop_days.csv", "workouts.csv"],
   );
   const entries = strFromU8(files["entries.csv"]);
   const lines = entries.trim().split("\r\n");

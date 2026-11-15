@@ -34,6 +34,8 @@ export type TargetInput = {
   adjustKcal: number;
   proteinRule: ProteinRule;
   proteinValue: number;
+  /** Measured average daily burn (WHOOP, 14 days). Replaces the formula estimate when given. */
+  measuredBurnKcal?: number | null;
 };
 
 export type Suggestion = {
@@ -43,13 +45,15 @@ export type Suggestion = {
   burn: number;
   /** true when a cut would have gone below resting burn and was raised to it */
   flooredAtBmr: boolean;
+  burnSource: "formula" | "whoop";
 };
 
 const round10 = (n: number) => Math.round(n / 10) * 10;
 
 export function suggestTargets(i: TargetInput): Suggestion {
   const rest = bmr(i.sex, i.weightKg, i.heightCm, i.ageYears);
-  const burn = rest * ACTIVITY_FACTOR[i.activity];
+  const measured = i.measuredBurnKcal != null && i.measuredBurnKcal > 0 ? i.measuredBurnKcal : null;
+  const burn = measured ?? rest * ACTIVITY_FACTOR[i.activity];
   const adjust = i.goal === "maintain" ? 0 : i.adjustKcal;
   let kcal = burn + adjust;
   let flooredAtBmr = false;
@@ -63,5 +67,6 @@ export function suggestTargets(i: TargetInput): Suggestion {
     bmr: Math.round(rest),
     burn: Math.round(burn),
     flooredAtBmr,
+    burnSource: measured === null ? "formula" : "whoop",
   };
 }

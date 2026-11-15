@@ -8,7 +8,7 @@ import { deleteWorkout, restoreWorkout, saveWorkout } from "../workouts/actions"
 export type WorkoutRow = { id: string; type: string; minutes: number; kcal: number | null; notes: string | null; source: string };
 
 /** Workouts for the day. Burned calories are context only: the calorie target never changes. */
-export function WorkoutsCard({ workouts, date }: { workouts: WorkoutRow[]; date: string }) {
+export function WorkoutsCard({ workouts, date, whoopBurn = null }: { workouts: WorkoutRow[]; date: string; whoopBurn?: number | null }) {
   const [sheet, setSheet] = useState<WorkoutRow | "new" | null>(null);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [undo, setUndo] = useState<WorkoutRow | null>(null);
@@ -52,7 +52,7 @@ export function WorkoutsCard({ workouts, date }: { workouts: WorkoutRow[]; date:
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate font-medium">{w.type}</span>
                     <span className="text-xs text-muted">
-                      {w.minutes} min{w.source === "claude" && " · via Claude"}{w.notes && ` · ${w.notes}`}
+                      {w.minutes} min{w.source === "claude" && " · via Claude"}{w.source === "whoop" && " · via WHOOP"}{w.notes && ` · ${w.notes}`}
                     </span>
                   </span>
                   <span className="tabular-nums text-sm">{w.kcal === null ? "—" : `${w.kcal} kcal`}</span>
@@ -61,7 +61,9 @@ export function WorkoutsCard({ workouts, date }: { workouts: WorkoutRow[]; date:
             ))}
           </ul>
           <p className="text-xs text-muted" data-testid="burned">
-            Burned {b.kcal} kcal{b.unknown > 0 && ` + ${b.unknown} unknown`} · not added to your calorie target
+            {whoopBurn !== null
+              ? "Burn comes from WHOOP’s day total, which already includes these · not added to your calorie target"
+              : <>Burned {b.kcal} kcal{b.unknown > 0 && ` + ${b.unknown} unknown`} · not added to your calorie target</>}
           </p>
         </>
       )}

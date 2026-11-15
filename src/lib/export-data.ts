@@ -10,7 +10,8 @@ const TABLES = {
   meal_items: "id, meal_id, food_id, servings",
   weigh_ins: "id, log_date, weight_kg, source, updated_at",
   targets: "id, effective_from, kcal, protein_g, source, created_at",
-  workouts: "id, log_date, type, minutes, kcal, notes, source, created_at, updated_at",
+  workouts: "id, log_date, type, minutes, kcal, notes, source, external_id, created_at, updated_at",
+  whoop_days: "log_date, kcal, in_progress, updated_at",
 } as const;
 
 const PAGE = 1000;
@@ -29,7 +30,7 @@ export async function buildExport(supabase: SupabaseClient, userId: string): Pro
     for (let from = 0; ; from += PAGE) {
       let q = supabase.from(table).select(cols).eq("user_id", userId);
       if (live) q = q.is("deleted_at", null);
-      const { data, error } = await q.order("id").range(from, from + PAGE - 1);
+      const { data, error } = await q.order(table === "whoop_days" ? "log_date" : "id").range(from, from + PAGE - 1);
       if (error) throw new Error(`export ${table}: ${error.code}`);
       rows.push(...((data ?? []) as unknown as Record<string, unknown>[]));
       if (!data || data.length < PAGE) break;

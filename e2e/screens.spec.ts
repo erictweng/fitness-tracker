@@ -121,3 +121,41 @@ test("phone screenshots", async ({ browser }) => {
   await page.getByTestId("connected-apps").screenshot({ path: `${dir}/12-settings-claude.png` });
   await ctx.close();
 });
+
+test("phone screenshots: WHOOP", async ({ browser }) => {
+  const { addDays } = await import("../src/lib/domain/day");
+  const { instantAt, localDate } = await import("./helpers");
+  const LA = "America/Los_Angeles";
+  const now = localDate(new Date(), LA);
+  const today = now.hour < 3 ? addDays(now.date, -1) : now.date;
+  const iso = (d: string, h: number, m = 0) => instantAt(d, h, m, LA).toISOString();
+  const cycles = Array.from({ length: 10 }, (_, i) => {
+    const d = addDays(today, -10 + i);
+    return { id: i + 1, start: iso(d, 7), end: iso(addDays(d, 1), 6, 30), score_state: "SCORED", score: { kilojoule: 4184 * (2550 + ((i * 37) % 300)) / 1000 } };
+  });
+  cycles.push({ id: 99, start: iso(today, 6, 30), end: null as unknown as string, score_state: "SCORED", score: { kilojoule: 4184 * 1.42 } });
+  const workouts = [{ id: "s-run", start: iso(today, 8), end: iso(today, 8, 34), sport_name: "running", score_state: "SCORED", score: { kilojoule: 1506, strain: 10.4 } }];
+  await fetch("http://127.0.0.1:3199/__reset");
+  await fetch("http://127.0.0.1:3199/__config", { method: "POST", body: JSON.stringify({ cycles, workouts }) });
+  await resetUser("wes@e2e.test", { invite: true });
+  const ctx = await browser.newContext({ timezoneId: LA, viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  const page = await ctx.newPage();
+  await signIn(page, "wes@e2e.test");
+  await onboard(page);
+  await page.goto("/settings");
+  await page.getByTestId("whoop-settings").screenshot({ path: `${dir}/14-whoop-connect.png` });
+  await page.getByTestId("whoop-connect").click();
+  await page.waitForURL(/whoop=connected/);
+  await page.getByTestId("whoop-settings").screenshot({ path: `${dir}/15-whoop-connected.png` });
+  await page.goto("/");
+  await page.getByTestId("add-food").click();
+  await page.getByTestId("quick-add").click();
+  const sheet = page.getByRole("dialog", { name: "Quick add" });
+  await sheet.getByLabel("Name (optional)").fill("Oatmeal + whey");
+  await sheet.getByLabel("Calories").fill("520");
+  await sheet.getByLabel(/^Protein g/).fill("42");
+  await sheet.getByRole("button", { name: "Save" }).click();
+  await sheet.waitFor({ state: "hidden" });
+  await page.screenshot({ path: `${dir}/16-whoop-today.png`, fullPage: true });
+  await ctx.close();
+});
