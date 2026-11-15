@@ -4,6 +4,7 @@ Phone-first web app for a small invited group: log food in seconds, see calories
 protein against your own targets (cut / maintain / bulk). Every log is private.
 
 - **Live:** https://fitness-tracker-vert-three.vercel.app (invite-only, Google sign-in)
+- **Design doc (plain language):** [docs/design_doc.md](docs/design_doc.md)
 - **Spec:** [SPEC.md](SPEC.md) · **Status:** [STATUS.md](STATUS.md) · **Tasks:** [TASKS.md](TASKS.md)
 - **Setup:** [docs/SETUP.md](docs/SETUP.md) · **Backups:** [docs/BACKUP.md](docs/BACKUP.md) · **Claude:** [docs/CLAUDE-CONNECTOR.md](docs/CLAUDE-CONNECTOR.md)
 - **Stack:** Next.js 16 (App Router) · Supabase (Postgres + Google auth + row-level security) · Vercel
