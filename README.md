@@ -68,7 +68,8 @@ Migrations aren't applied to the hosted database automatically. After merging on
   offline, export, delete account, backups.
 - **M4.5** (~Nov 21–24) — Claude connector (log, read and edit entries by chat; no settings
   changes or deletes) and a simple workout log.
-- **M5** — WHOOP, only if the group logs on ≥ 12 of 14 days (Nov 20 → Dec 4).
+- **M5** — WHOOP: connect your own WHOOP; calories burned, eaten − burned, workouts imported,
+  weekly suggestions from your real burn. See [docs/WHOOP.md](docs/WHOOP.md).
 - **v2 with Derek** — meal planning, complete days, fuller workouts, sleep, trackers, shared space.
   See [SPEC.md](SPEC.md).
 

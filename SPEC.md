@@ -18,7 +18,7 @@ A phone-first web app where a small invited group logs what they eat in seconds 
 - Self-serve export and account deletion; daily encrypted off-site backup.
 
 **Non-goals for the MVP** (confirmed by Eric 2026-11-11)
-- Barcode scanning (next), WHOOP (M5, after the usage gate), native Mac/iPhone apps, in-app AI text logging (replaced by the Claude connector, M4.5), micronutrients, social features (post-MVP backlog), public sign-up.
+- Barcode scanning (next), WHOOP (M5, built right after the MVP), native Mac/iPhone apps, in-app AI text logging (replaced by the Claude connector, M4.5), micronutrients, social features (post-MVP backlog), public sign-up.
 
 ## Users & permissions
 - **Users:** a small invited group (target < 20). Eric is a user and the only **admin**.
@@ -135,7 +135,7 @@ A phone-first web app where a small invited group logs what they eat in seconds 
 - **Vercel (Hobby):** hosting, preview deploy per branch.
 - **Google OAuth:** client created by Eric in Google Cloud console, configured in Supabase.
 - **Backups:** GitHub Actions, daily at 3 AM PT (was weekly; changed 2026-11-13, see Hosting): `pg_dump` → encrypted with `age` (public key in the repo; private key only with Eric, in his password manager) → uploaded to a private **Cloudflare R2** bucket (free tier 10 GB); keep the last 30 (≈ 30 days). DB URL and R2 keys are GitHub Actions secrets. The workflow prints only file size and row counts (the repo is public, so its logs are public).
-- **WHOOP (M5, later):** each user connects their own WHOOP via the official v2 OAuth API; details in `docs/SPEC-v0-research.md`.
+- **WHOOP (M5, built 2026-11-14, ahead of the usage gate at Eric's call):** each user connects their own WHOOP via the official v2 OAuth API; see the M5 section below and `docs/WHOOP.md`.
 
 ## Non-functional requirements
 - Saved-food log in ≤ 10 s, ≤ 3 taps.
@@ -166,6 +166,19 @@ Each user can connect their own Claude (Claude app on phone/web as a custom conn
 - **After Claude logs:** saved immediately, marked **"via Claude"** (`source = 'claude'` + OAuth `client_id`), editable and undoable in the app like any entry. Each tool call uses a client-generated id so a retried call never doubles an entry.
 - **Cost:** $0 for the app (Claude does the estimating on the user's own Claude plan); MCP sign-ins count toward Supabase monthly active users (same user = 1).
 - **Acceptance:** Claude Code connects through the OAuth flow; "I had 2 eggs and toast" creates one entry marked via Claude with sensible numbers; `get_day` matches the Today screen; a second user's token sees none of the first user's data; retrying the same tool call creates no duplicate; revoking the app in Settings makes the next call fail.
+
+## WHOOP (M5, built 2026-11-14)
+Eric moved this ahead of the usage gate (food logging already confirmed working).
+- **Connect:** Settings → WHOOP → Connect (official OAuth, per user). Scopes `offline read:cycles read:workout` only. Redirect `/whoop/callback`; CSRF state in a 10-minute httpOnly cookie. Privacy policy page at `/privacy`.
+- **Tokens:** encrypted by the server (AES-256-GCM, key derived from `WHOOP_CLIENT_SECRET`) before storage; the token table has no direct access for anyone; database functions refuse Claude tokens. Refresh tokens rotate, so syncs are serialized per user and the rotated token is always saved.
+- **Sync:** pull-based (WHOOP has no daily-total webhook). First connect imports 30 days; Today re-syncs the last 3 days when opened and the last sync is > 10 min old; "Sync now" in Settings.
+- **Day rule:** a WHOOP cycle counts toward the app day its start falls on (user's timezone + day-end hour); kcal = kJ ÷ 4.184; unscored = unknown, never 0; the open cycle shows "so far".
+- **Today:** WHOOP card with burned and eaten − burned (context only; daily target never changes).
+- **Workouts:** imported with `source = 'whoop'` + WHOOP id (unique per user). Re-syncs fill in newly scored numbers and never duplicate; a deleted WHOOP workout stays deleted. No double counting: with WHOOP connected, the day's burn is WHOOP's day total (which already includes all workouts); hand/Claude workouts stay listed but aren't added on top.
+- **Weekly suggestion:** uses the 14-day average WHOOP burn when ≥ 7 finished, scored days exist (excluding today); otherwise the formula. Still floored at resting burn on a cut; never auto-applied.
+- **Disconnect:** revokes at WHOOP (best effort) and deletes the stored tokens; imported history stays (export: `whoop_days.csv`; deleted with the account).
+- **Open check:** confirm cycle kJ is total daily burn by comparing a week with the WHOOP app's Calories.
+- **Acceptance (met in tests against a fake WHOOP):** connect, paging, encrypted at rest, Today numbers, re-sync without duplicates, refresh + rotation, revoked → "reconnect", bad state / denied rejected, disconnect, another user sees nothing, Claude can't reach any WHOOP function.
 
 ## v2 with Derek (agreed 2026-11-13)
 Derek (GitHub `dsheep3201`, collaborator with write access) reviewed the spec in his "Fitness App Requirements and Discussion v4" Google Doc. Outcome: one app, built on this repo; his character / shared-space idea is the long-term niche, layered on top after the MVP. Eric approved the requests below. **Launch scope for Fri 11-20 does not change.**

@@ -44,4 +44,16 @@ describe("suggestTargets", () => {
     expect(s.flooredAtBmr).toBe(true);
     expect(s.kcal).toBe(1810);
   });
+  it("uses WHOOP's measured burn instead of the formula when given", () => {
+    const s = suggestTargets({ ...base, goal: "cut", adjustKcal: -500, measuredBurnKcal: 3200 });
+    expect(s.burn).toBe(3200);
+    expect(s.kcal).toBe(2700);
+    expect(s.burnSource).toBe("whoop");
+    expect(suggestTargets({ ...base, goal: "cut", adjustKcal: -500, measuredBurnKcal: null }).burnSource).toBe("formula");
+  });
+  it("a low measured burn still can't push a cut below resting burn", () => {
+    const s = suggestTargets({ ...base, goal: "cut", adjustKcal: -500, measuredBurnKcal: 2000 });
+    expect(s.flooredAtBmr).toBe(true);
+    expect(s.kcal).toBe(1810);
+  });
 });

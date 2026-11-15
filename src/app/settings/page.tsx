@@ -7,13 +7,16 @@ import { suggestionFor } from "@/lib/suggest";
 import { SettingsForm, TargetsForm } from "./settings-forms";
 import { DeleteAccountForm } from "../account/danger-forms";
 import { ConnectedApps } from "./connected-apps";
+import { WhoopSettings } from "./whoop-settings";
 import { SignOutButton } from "./sign-out";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
   await connection();
   const { supabase, profile } = await requireUser();
   if (!profile.onboarded_at) redirect("/onboarding");
   const today = todayFor(profile);
+  const sp = await searchParams;
+  const whoopResult = typeof sp.whoop === "string" ? sp.whoop : null;
   const [target, sugg] = await Promise.all([targetFor(supabase, today), suggestionFor(supabase, profile, today)]);
   const suggestion = sugg?.suggestion ?? null;
 
@@ -33,6 +36,8 @@ export default async function SettingsPage() {
         <h2 className="font-semibold">Goal & preferences</h2>
         <SettingsForm profile={profile} />
       </section>
+
+      <WhoopSettings supabase={supabase} result={whoopResult} />
 
       <ConnectedApps supabase={supabase} />
 

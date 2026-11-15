@@ -7,6 +7,8 @@ import type { Picker } from "./add-sheet";
 import { SuggestionCard } from "./suggestion-card";
 import { toDisplayWeight } from "@/lib/domain/units";
 import { WorkoutsCard, type WorkoutRow } from "./workouts-card";
+import { WhoopAutoSync } from "./whoop-auto-sync";
+import { netKcal, type DayRow } from "@/lib/domain/whoop";
 
 type Props = {
   profile: Profile;
@@ -17,7 +19,8 @@ type Props = {
   workouts: WorkoutRow[];
   picker: Picker;
   weight: { latestKg: number | null; avgKg: number | null };
-  suggestion: { kcal: number; protein: number; fromKcal: number; fromProtein: number } | null;
+  suggestion: { kcal: number; protein: number; fromKcal: number; fromProtein: number; burnSource: "formula" | "whoop" } | null;
+  whoop: { connected: boolean; day: DayRow | null };
 };
 
 function fmtDate(iso: string, today: string) {
@@ -27,7 +30,7 @@ function fmtDate(iso: string, today: string) {
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-export function TodayView({ profile, date, today, target, entries, workouts, picker, weight, suggestion }: Props) {
+export function TodayView({ profile, date, today, target, entries, workouts, picker, weight, suggestion, whoop }: Props) {
   const u = profile.weight_unit;
   const t = totals(entries);
   const kcalLeft = target ? target.kcal - t.kcal : null;
@@ -87,6 +90,8 @@ export function TodayView({ profile, date, today, target, entries, workouts, pic
           <span className="text-muted"> ›</span>
         </span>
       </Link>
+      {(whoop.connected || whoop.day) && <EnergyLine eaten={t.kcal} day={whoop.day} isToday={isToday} />}
+      {whoop.connected && isToday && <WhoopAutoSync />}
       {suggestion && <SuggestionCard {...suggestion} />}
 
       <DayLog
@@ -99,8 +104,34 @@ export function TodayView({ profile, date, today, target, entries, workouts, pic
         required={{ protein: profile.require_protein, fat: profile.require_fat, carbs: profile.require_carbs }}
         picker={picker}
       />
-      <WorkoutsCard key={date} workouts={workouts} date={date} />
+      <WorkoutsCard key={date} workouts={workouts} date={date} whoopBurn={whoop.day?.kcal ?? null} />
     </main>
+  );
+}
+
+/** WHOOP's burn for the day and eaten − burned. Context only: the calorie target never changes. */
+function EnergyLine({ eaten, day, isToday }: { eaten: number; day: DayRow | null; isToday: boolean }) {
+  const burned = day?.kcal ?? null;
+  const net = netKcal(eaten, burned);
+  let text: string;
+  if (!day) text = isToday ? "Waiting on WHOOP…" : "No WHOOP data for this day";
+  else if (burned === null) text = "Waiting on WHOOP to score this day";
+  else text = `Burned ${burned.toLocaleString("en-US")} kcal${day.in_progress ? " so far" : ""}`;
+  return (
+    <section className="card flex items-center justify-between gap-2 py-3" data-testid="energy" aria-label="WHOOP energy">
+      <span className="flex min-w-0 flex-col">
+        <span className="text-sm text-muted">WHOOP</span>
+        <span className="tabular-nums" data-testid="whoop-burned">{text}</span>
+      </span>
+      {net !== null && (
+        <span className="flex shrink-0 flex-col items-end">
+          <span className="text-sm text-muted">Eaten − burned</span>
+          <span className={`text-lg font-semibold tabular-nums ${net > 0 ? "text-warn" : ""}`} data-testid="net-kcal">
+            {net > 0 ? `+${net}` : net}
+          </span>
+        </span>
+      )}
+    </section>
   );
 }
 
