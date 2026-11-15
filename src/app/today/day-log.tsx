@@ -5,7 +5,7 @@ import { logDateFor, mealFor, MEALS, type Meal } from "@/lib/domain/day";
 import { NOTES_MAX, parseEntry, type Required } from "@/lib/domain/entries";
 import { deleteEntry, restoreEntry, updateEntry, type EntryResult } from "../entries/actions";
 import { AddSheet, type Picker } from "./add-sheet";
-import { discardPending, submitOrQueue, useOfflineQueue } from "@/lib/offline-queue";
+import { discardPending, retryPending, submitOrQueue, useOfflineQueue } from "@/lib/offline-queue";
 
 export type EntryRow = {
   id: string;
@@ -89,13 +89,18 @@ export function DayLog({ userId, entries, date, isToday, timezone, dayEndHour, r
     <>
       {queue.length > 0 && (
         <div role="status" className="card flex flex-col gap-1 border-accent text-sm" data-testid="pending-banner">
-          <span>
-            <span className="text-accent">●</span> {queue.filter((p) => !p.failed).length} waiting for signal · saved on this phone, syncs automatically
-          </span>
+          {queue.some((p) => !p.failed) && (
+            <span>
+              <span className="text-accent">●</span> {queue.filter((p) => !p.failed).length} waiting for signal · saved on this phone, syncs automatically
+            </span>
+          )}
           {queue.filter((p) => p.failed).map((p) => (
             <span key={p.key} className="flex items-center justify-between gap-2 text-warn">
-              <span className="truncate">Couldn&apos;t sync {p.preview.name || `${p.preview.kcal} kcal`}: {p.failed}</span>
-              <button type="button" className="text-muted underline" onClick={() => discardPending(userId, p.key)}>Discard</button>
+              <span className="truncate" data-testid="pending-failed">Couldn&apos;t sync {p.preview.name || `${p.preview.kcal} kcal`}: {p.failed}</span>
+              <span className="flex shrink-0 gap-3">
+                <button type="button" className="text-muted underline" onClick={() => retryPending(userId, p.key)}>Retry</button>
+                <button type="button" className="text-muted underline" onClick={() => discardPending(userId, p.key)}>Discard</button>
+              </span>
             </span>
           ))}
         </div>

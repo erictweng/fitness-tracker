@@ -54,3 +54,11 @@
 - [ ] Eric — run `supabase/migrations/0006_m45_claude_workouts.sql` in the hosted SQL Editor
 - [ ] Eric — Supabase → Authentication → OAuth Server: enable, path `/oauth/consent`, allow dynamic client registration (docs/CLAUDE-CONNECTOR.md)
 - [ ] Eric — merge the M4.5 PR, then connect Claude and log a real meal
+
+## Audit fixes (2026-11-14, branch `audit-fixes`)
+- [x] agent — Export pages through Supabase's 1,000-row limit (was silently cut off at 1,000 rows per table)
+- [x] agent — Security headers: no embedding by other sites (frame-ancestors 'none' + X-Frame-Options), nosniff, referrer and permissions policies
+- [x] agent — Offline queue: a refused item no longer blocks the ones behind it; shown as failed after 10 tries; Retry button
+- [x] agent — Offline queue cleared on sign-out (with a warning if anything is unsent) and after account deletion
+- [ ] Eric — backups: save the private key, R2 + secrets (docs/BACKUP.md); invite check on live; Derek accepts the invite
+- [ ] later — offline app shell (open from the home screen with no signal)
