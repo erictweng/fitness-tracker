@@ -94,3 +94,19 @@ test("deleting the account clears every queue on the phone", async ({ browser })
   expect(await page.evaluate(() => localStorage.getItem("unrelated"))).toBe("keep");
   await ctx.close();
 });
+
+test("privacy policy is public (signed out) and linked from sign-in", async ({ browser }) => {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const res = await page.goto("/privacy");
+  expect(res?.status()).toBe(200);
+  await expect(page.getByRole("heading", { name: "Privacy policy" })).toBeVisible();
+  for (const h of ["What we store", "Who can see it", "Connected apps", "Your choices"]) {
+    await expect(page.getByRole("heading", { name: h })).toBeVisible();
+  }
+  await expect(page.getByText(/read-only access to daily calories burned and workouts/)).toBeVisible();
+  await page.goto("/");
+  await page.getByRole("link", { name: "Privacy policy" }).click();
+  await expect(page).toHaveURL(/\/privacy$/);
+  await ctx.close();
+});
