@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { NavigationLink } from "@/app/navigation-link";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/session";
@@ -44,18 +44,18 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-5 p-5 pb-16">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">History</h1>
-        <Link className="btn btn-ghost" href="/">Done</Link>
+        <NavigationLink className="btn btn-ghost" href="/">Done</NavigationLink>
       </header>
       <nav className="grid grid-cols-2 gap-2" aria-label="Range">
         {[7, 30].map((r) => (
-          <Link
+          <NavigationLink
             key={r}
             href={`/history?range=${r}`}
             className={`btn ${r === range ? "" : "btn-ghost"}`}
             aria-current={r === range ? "page" : undefined}
           >
             {r} days
-          </Link>
+          </NavigationLink>
         ))}
       </nav>
 

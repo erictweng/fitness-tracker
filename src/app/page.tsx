@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { getMe, requireUser } from "@/lib/session";
+import { getUserContext } from "@/lib/session";
 import { targetFor, todayFor } from "@/lib/profile";
 import { addDays, isIsoDate } from "@/lib/domain/day";
 import { sevenDayAverage, shouldSuggest } from "@/lib/domain/weight";
@@ -20,9 +20,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const rawError = Array.isArray(sp.auth_error) ? sp.auth_error[0] : sp.auth_error;
   const authError = isAuthErrorCode(rawError) ? AUTH_ERROR_COPY[rawError] : null;
   const configured = getSupabaseConfig() !== null;
-  const me = configured ? await getMe() : null;
+  const context = configured ? await getUserContext() : null;
 
-  if (!me) {
+  if (!context) {
     return (
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 p-6">
         <h1 className="text-3xl font-bold">Fitness Tracker</h1>
@@ -54,21 +54,19 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     );
   }
 
-  if (!me.onboarded) redirect("/onboarding");
-  const { supabase, profile } = await requireUser();
-  await supabase.rpc("touch_last_active");
+  const { supabase, profile } = context;
+  if (profile.onboarded_at === null) redirect("/onboarding");
 
   const today = todayFor(profile);
   const rawDate = Array.isArray(sp.date) ? sp.date[0] : sp.date;
   const date = rawDate && isIsoDate(rawDate) && rawDate <= today ? rawDate : today;
 
-  const [target, picker, weighIns, lastWeighIn, todaysTarget, sugg, { data: entries }, { data: workouts }, whoopDays, whoop] = await Promise.all([
+  const [target, picker, weighIns, lastWeighIn, sugg, { data: entries }, { data: workouts }, whoopDays, whoop] = await Promise.all([
     targetFor(supabase, date),
     loadPicker(supabase),
     loadWeighIns(supabase, addDays(today, -6), today),
     latestWeighIn(supabase, today),
-    targetFor(supabase, today),
-    suggestionFor(supabase, profile, today),
+    date === today ? suggestionFor(supabase, profile, today) : null,
     supabase
       .from("entries")
       .select("id, name, meal, kcal, protein_g, fat_g, carbs_g, source, log_date, notes")
@@ -83,6 +81,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       .order("created_at", { ascending: true }),
     loadWhoopDays(supabase, date, date),
     whoopStatus(supabase),
+    supabase.rpc("touch_last_active"),
   ]);
 
   const rows: EntryRow[] = (entries ?? []).map((e) => ({
@@ -93,15 +92,15 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     carbs_g: e.carbs_g === null ? null : Number(e.carbs_g),
   })) as EntryRow[];
 
-    const avg = sevenDayAverage(weighIns, today);
+  const avg = sevenDayAverage(weighIns, today);
   const latest = lastWeighIn;
   const weight = { latestKg: latest?.weight_kg ?? null, avgKg: avg };
   const suggestion =
     date === today &&
     sugg &&
-    todaysTarget &&
-    shouldSuggest({ today, current: todaysTarget, suggestion: sugg.suggestion, dismissedWeek: profile.suggestion_dismissed_week })
-      ? { kcal: sugg.suggestion.kcal, protein: sugg.suggestion.proteinG, fromKcal: todaysTarget.kcal, fromProtein: todaysTarget.protein_g, burnSource: sugg.suggestion.burnSource }
+    target &&
+    shouldSuggest({ today, current: target, suggestion: sugg.suggestion, dismissedWeek: profile.suggestion_dismissed_week })
+      ? { kcal: sugg.suggestion.kcal, protein: sugg.suggestion.proteinG, fromKcal: target.kcal, fromProtein: target.protein_g, burnSource: sugg.suggestion.burnSource }
       : null;
 
   return (

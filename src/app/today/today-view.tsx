@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { NavigationLink } from "@/app/navigation-link";
 import { addDays } from "@/lib/domain/day";
 import { totals } from "@/lib/domain/entries";
 import type { Profile, Target } from "@/lib/profile";
@@ -41,7 +41,7 @@ export function TodayView({ profile, date, today, target, entries, workouts, pic
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-5 p-5 pb-28">
       <header className="flex items-center justify-between gap-2">
         <nav className="flex min-w-0 items-center gap-1" aria-label="Day">
-          <Link className="btn btn-ghost w-10! px-0!" href={`/?date=${addDays(date, -1)}`} aria-label="Previous day">‹</Link>
+          <NavigationLink className="btn btn-ghost w-10! px-0!" href={`/?date=${addDays(date, -1)}`} aria-label="Previous day">‹</NavigationLink>
           <form action="/" className="flex">
             <input
               type="date"
@@ -53,12 +53,12 @@ export function TodayView({ profile, date, today, target, entries, workouts, pic
             />
             <button className="sr-only" type="submit">Go</button>
           </form>
-          {!isToday && <Link className="btn btn-ghost w-10! px-0!" href={`/?date=${addDays(date, 1)}`} aria-label="Next day">›</Link>}
+          {!isToday && <NavigationLink className="btn btn-ghost w-10! px-0!" href={`/?date=${addDays(date, 1)}`} aria-label="Next day">›</NavigationLink>}
         </nav>
         <span className="flex shrink-0 gap-1">
-          <Link className="btn btn-ghost w-10! px-0!" href="/history" aria-label="History">▥</Link>
-          <Link className="btn btn-ghost w-10! px-0!" href="/foods" aria-label="Foods and meals">☰</Link>
-          <Link className="btn btn-ghost w-10! px-0!" href="/settings" aria-label="Settings">⚙︎</Link>
+          <NavigationLink className="btn btn-ghost w-10! px-0!" href="/history" aria-label="History">▥</NavigationLink>
+          <NavigationLink className="btn btn-ghost w-10! px-0!" href="/foods" aria-label="Foods and meals">☰</NavigationLink>
+          <NavigationLink className="btn btn-ghost w-10! px-0!" href="/settings" aria-label="Settings">⚙︎</NavigationLink>
         </span>
       </header>
       <h1 className="text-2xl font-bold" data-testid="day-title">{fmtDate(date, today)}</h1>
@@ -82,14 +82,14 @@ export function TodayView({ profile, date, today, target, entries, workouts, pic
       <p className="text-sm text-muted" data-testid="fat-carbs">
         Fat {macroText(t.fat, t.missingFat, t.count)} · Carbs {macroText(t.carbs, t.missingCarbs, t.count)}
       </p>
-      <Link href="/weight" className="card flex items-center justify-between py-3" data-testid="weight-line">
+      <NavigationLink href="/weight" className="card flex items-center justify-between py-3" data-testid="weight-line">
         <span className="text-sm text-muted">Weight</span>
         <span className="tabular-nums">
           {weight.latestKg === null ? "Log a weigh-in" : `${toDisplayWeight(weight.latestKg, u).toFixed(1)} ${u}`}
           {weight.avgKg !== null && <span className="text-muted"> · 7-day avg {toDisplayWeight(weight.avgKg, u).toFixed(1)}</span>}
           <span className="text-muted"> ›</span>
         </span>
-      </Link>
+      </NavigationLink>
       {(whoop.connected || whoop.day) && <EnergyLine eaten={t.kcal} day={whoop.day} isToday={isToday} />}
       {whoop.connected && isToday && <WhoopAutoSync />}
       {suggestion && <SuggestionCard {...suggestion} />}

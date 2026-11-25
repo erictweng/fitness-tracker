@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { NavigationLink } from "@/app/navigation-link";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/session";
@@ -24,7 +24,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-6">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Settings</h1>
-        <Link className="btn btn-ghost" href="/">Done</Link>
+        <NavigationLink className="btn btn-ghost" href="/">Done</NavigationLink>
       </header>
 
       <section className="card flex flex-col gap-3">
@@ -54,13 +54,13 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             <li>No ads, analytics or trackers.</li>
             <li>An encrypted backup is made daily and each copy is deleted after 30 days. Deleting your account removes your data now; it leaves the backups as they age out.</li>
           </ul>
-          <Link className="mt-2 inline-block underline" href="/privacy" data-testid="privacy-link">Full privacy policy</Link>
+          <NavigationLink className="mt-2 inline-block underline" href="/privacy" data-testid="privacy-link">Full privacy policy</NavigationLink>
         </details>
       </section>
 
       <section className="card flex flex-col gap-3">
         <p className="text-sm text-muted">Signed in as {profile.email}</p>
-        {profile.is_admin && <Link className="btn btn-ghost" href="/admin" data-testid="admin-link">Admin</Link>}
+        {profile.is_admin && <NavigationLink className="btn btn-ghost" href="/admin" data-testid="admin-link">Admin</NavigationLink>}
         <SignOutButton userId={profile.user_id} />
       </section>
     </main>
