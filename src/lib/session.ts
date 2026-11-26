@@ -1,7 +1,7 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { createClient } from "./supabase/server";
-import { getProfile, type Profile } from "./profile";
+import { getProfile } from "./profile";
 
 export type Me = {
   id: string;
@@ -33,13 +33,20 @@ export async function getMe(): Promise<Me | null> {
   };
 }
 
-/** For pages and actions that need a signed-in, onboarded user. */
-export async function requireUser() {
+/** Return the verified user and their profile together for this request. */
+export async function getUserContext() {
   const supabase = await createClient();
-  if (!supabase) redirect("/");
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) redirect("/");
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return null;
   const profile = await getProfile(supabase, data.user.id);
-  if (!profile) redirect("/");
-  return { supabase, user: data.user, profile: profile as Profile };
+  if (!profile) return null;
+  return { supabase, user: data.user, profile };
+}
+
+/** For pages and actions that require a signed-in user with a profile. */
+export async function requireUser() {
+  const context = await getUserContext();
+  if (!context) redirect("/");
+  return context;
 }
